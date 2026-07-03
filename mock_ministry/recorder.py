@@ -28,6 +28,7 @@ class FileRecorder:
         headers: dict[str, str],
         body: str,
         response: dict[str, Any] | None = None,
+        meta: dict[str, Any] | None = None,
     ) -> Path:
         record = {
             "time": datetime.now(timezone.utc).isoformat(),
@@ -38,6 +39,8 @@ class FileRecorder:
         }
         if response is not None:
             record["response"] = response
+        if meta is not None:
+            record["meta"] = meta
 
         line = json.dumps(record, ensure_ascii=False, sort_keys=True)
         with self._lock:
