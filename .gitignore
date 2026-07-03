@@ -1,0 +1,10 @@
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# local config / run outputs
+configs/env.local.yaml
+reports/
+tmps/

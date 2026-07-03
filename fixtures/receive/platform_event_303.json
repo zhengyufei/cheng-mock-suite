@@ -1,0 +1,18 @@
+{
+  "name": "platform_event_303",
+  "description": "平台事件 dataSubType=303 样例",
+  "outer": {
+    "orderID": "2-303-2026070300000000001",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "dataType": 2,
+    "dataSubType": 303,
+    "timeStamp": "20260703100300",
+    "platformCode": "mock-platform",
+    "eventType": "platform_registered",
+    "sign": ""
+  }
+}

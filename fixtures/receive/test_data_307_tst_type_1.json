@@ -1,0 +1,19 @@
+{
+  "name": "test_data_307_tst_type_1",
+  "description": "测试数据 dataSubType=307 tstType=1 样例",
+  "outer": {
+    "orderID": "2-307-2026070300000000001",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "dataType": 2,
+    "dataSubType": 307,
+    "tstType": 1,
+    "timeStamp": "20260703100100",
+    "sampleId": "mock-sample-307-1",
+    "result": "pass",
+    "sign": ""
+  }
+}

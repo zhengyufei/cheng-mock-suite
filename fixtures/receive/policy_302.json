@@ -1,0 +1,18 @@
+{
+  "name": "policy_302",
+  "description": "策略协商 dataSubType=302 样例",
+  "outer": {
+    "orderID": "2-302-2026070300000000001",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "dataType": 2,
+    "dataSubType": 302,
+    "timeStamp": "20260703100000",
+    "policyVersion": "mock-policy-v1",
+    "action": "sync",
+    "sign": ""
+  }
+}
