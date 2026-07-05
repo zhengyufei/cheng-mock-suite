@@ -23,6 +23,7 @@
         {
           "fileID": "testdata307t2file001",
           "fileName": "vpt-vulnerability.json",
+          "fileMD5": "md5-type2",
           "svcType": 10,
           "dataType": "json",
           "objectID": "2-307-2026070500000000002"

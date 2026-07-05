@@ -43,9 +43,18 @@ def test_protocol_platform_manifest_lists_feature_interface_coverage() -> None:
         "31",
         "32",
         "33",
+        "307",
         "399",
     }
     assert expected_cases <= set(data["send_to_backend"]["fixture_cases"])
+    assert set(data["send_to_backend"]["fixture_cases"]["307"].values()) == {
+        "test_data_307_tst_type_1",
+        "test_data_307_tst_type_2",
+        "test_data_307_tst_type_3",
+        "test_data_307_tst_type_4",
+        "test_data_307_tst_type_5",
+        "test_data_307_tst_type_6",
+    }
     assert data["send_to_backend"]["fixture_cases"]["file_103"] == "file_103"
     assert data["send_to_backend"]["fixture_cases"]["33"] == "file_103"
     assert set(data["send_to_backend"]["delivery_send_cases"]) == {

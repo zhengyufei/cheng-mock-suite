@@ -53,7 +53,14 @@
       "304": "platform_status_304",
       "305": "platform_log_305",
       "306": "platform_file_306",
-      "307": "test_data_307_tst_type_1",
+      "307": {
+        "tstType1": "test_data_307_tst_type_1",
+        "tstType2": "test_data_307_tst_type_2",
+        "tstType3": "test_data_307_tst_type_3",
+        "tstType4": "test_data_307_tst_type_4",
+        "tstType5": "test_data_307_tst_type_5",
+        "tstType6": "test_data_307_tst_type_6"
+      },
       "308": "device_register_308",
       "309": "device_cmd_309",
       "399": "unknown_subtype_399",

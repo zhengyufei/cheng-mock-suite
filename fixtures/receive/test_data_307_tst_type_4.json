@@ -23,6 +23,7 @@
         {
           "fileID": "testdata307t4file001",
           "fileName": "vpt-file.json",
+          "fileMD5": "md5-type4",
           "svcType": 5,
           "dataType": "json",
           "objectID": "2-307-2026070500000000004"

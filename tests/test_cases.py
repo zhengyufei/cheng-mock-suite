@@ -19,6 +19,11 @@ REQUIRED_CASES = {
     "platform_log_305",
     "platform_file_306",
     "test_data_307_tst_type_1",
+    "test_data_307_tst_type_2",
+    "test_data_307_tst_type_3",
+    "test_data_307_tst_type_4",
+    "test_data_307_tst_type_5",
+    "test_data_307_tst_type_6",
     "unknown_subtype_399",
 }
 
@@ -36,6 +41,16 @@ def test_load_case_and_build_plain_envelope() -> None:
     inner = json.loads(envelope["reqMsgCnt"])
     assert inner["dataType"] == 2
     assert inner["dataSubType"] == 302
+
+
+def test_load_test_data_307_type_6_envelope_uses_nested_tst_params() -> None:
+    case = load_case("test_data_307_tst_type_6")
+    envelope = build_plain_envelope(case)
+
+    inner = json.loads(envelope["reqMsgCnt"])
+    assert inner["dataType"] == 2
+    assert inner["dataSubType"] == 307
+    assert inner["tstReqParams"]["tstType"] == 6
 
 
 def test_negative_mutations_cover_feature_interface_groups() -> None:

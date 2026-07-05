@@ -18,6 +18,15 @@
       "opCode": 1
     },
     "timeStamp": "20260703100100",
+    "data": {
+      "fileInfoLst": [
+        {
+          "fileID": "testdata307t1file001",
+          "fileName": "warning-assets-type1.json",
+          "fileMD5": "md5-type1"
+        }
+      ]
+    },
     "sampleId": "mock-sample-307-1",
     "result": "pass",
     "sign": ""
