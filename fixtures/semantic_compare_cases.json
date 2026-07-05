@@ -1,0 +1,23 @@
+{
+  "cases": [
+    "policy_302",
+    "test_data_307_tst_type_1",
+    "device_cmd_309",
+    "platform_event_303",
+    "unknown_subtype_399"
+  ],
+  "expected_fix_cases": [
+    "policy_302",
+    "test_data_307_tst_type_1",
+    "device_cmd_309",
+    "platform_event_303",
+    "unknown_subtype_399"
+  ],
+  "expected_feature_status": {
+    "policy_302": 0,
+    "test_data_307_tst_type_1": 0,
+    "device_cmd_309": 0,
+    "platform_event_303": 0,
+    "unknown_subtype_399": 1
+  }
+}
