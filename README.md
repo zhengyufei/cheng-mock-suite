@@ -10,7 +10,7 @@
 python tools/run_mock_server.py --mock protocol-ministry-platform --host 127.0.0.1 --port 18080
 python tools/send_case.py --case policy_302 --base-url http://127.0.0.1:8000
 python tools/verify_protocol_ministry_platform.py --mode observe --format markdown
-python tools/run_protocol_refactor_check.py --backend-base-url http://127.0.0.1:8000 --mode observe --send-case policy_302
+python tools/run_protocol_refactor_check.py --backend-base-url http://127.0.0.1:8000 --mode observe
 python -m pytest
 ```
 
@@ -67,6 +67,8 @@ docs/protocol-ministry-platform-mock.md
 - `device_cmd_309`
 - `platform_event_303`
 - `unknown_subtype_399`
+- `file_103`
 
 `tools/send_case.py` loads one fixture, builds a plain envelope, and posts it
 to `<base-url>/api/ministry/receive` by default. If the target backend already requires encrypted `reqMsgCnt`, the request may fail with a decode or decrypt error; that is acceptable for this first mock stage.
+`tools/run_protocol_refactor_check.py` runs the default contract send suite `policy_302,file_103` when `--send-case` is omitted.

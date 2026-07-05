@@ -27,8 +27,13 @@
       "303": "platform_event_303",
       "307": "test_data_307_tst_type_1",
       "309": "device_cmd_309",
-      "399": "unknown_subtype_399"
-    }
+      "399": "unknown_subtype_399",
+      "file_103": "file_103"
+    },
+    "default_send_cases": [
+      "policy_302",
+      "file_103"
+    ]
   },
   "verification_modes": {
     "observe": {

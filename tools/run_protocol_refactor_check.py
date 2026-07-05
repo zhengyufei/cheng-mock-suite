@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from mock_ministry.mocks.protocol_ministry_platform.runner import run_refactor_check
+from mock_ministry.mocks.protocol_ministry_platform.runner import DEFAULT_SEND_CASES, run_refactor_check  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -32,7 +32,7 @@ def main() -> int:
         backend_base_url=args.backend_base_url,
         record_dir=args.record_dir,
         mode=args.mode,
-        send_cases=args.send_case or ["policy_302"],
+        send_cases=args.send_case or DEFAULT_SEND_CASES,
         outbound_paths=args.outbound_path,
         mock_host=args.mock_host,
         mock_port=args.mock_port,
