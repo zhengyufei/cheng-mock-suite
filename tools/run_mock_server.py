@@ -15,18 +15,24 @@ from mock_ministry.server import create_server
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the local ministry mock receiver.")
+    parser.add_argument("--mock", default="protocol-ministry-platform")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=18080)
     parser.add_argument("--record-dir", default="reports/mock-server")
+    parser.add_argument("--scenario", choices=["success", "reject"], default="success")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    if args.mock != "protocol-ministry-platform":
+        print(f"unsupported mock: {args.mock}", file=sys.stderr)
+        return 2
+
     recorder = FileRecorder(base_dir=args.record_dir)
-    server = create_server(host=args.host, port=args.port, recorder=recorder)
+    server = create_server(host=args.host, port=args.port, recorder=recorder, scenario=args.scenario)
     host, port = server.server_address
-    print(f"ministry mock receiver listening on http://{host}:{port}")
+    print(f"{args.mock} listening on http://{host}:{port}")
     print(f"recording requests to {recorder.path}")
 
     try:

@@ -1,0 +1,53 @@
+{
+  "mock": "protocol-ministry-platform",
+  "description": "协议级部侧监管平台 mock，覆盖 gate-ministry-entry-contract 当前会重构和验证的外部边界。",
+  "receive_from_backend": {
+    "description": "本系统主动推送到部侧监管平台，由此 mock 接收。",
+    "paths": [
+      "/ministry/receive",
+      "/ministry/file",
+      "/api/v1/platformFileUpload"
+    ],
+    "subtypes": {
+      "301": "下级平台注册",
+      "308": "安全设备注册",
+      "104": "产品漏洞上传",
+      "105": "口令字典上传",
+      "201": "指令统计上报"
+    }
+  },
+  "send_to_backend": {
+    "description": "部侧监管平台下发到当前后端，由工具按 fixture 发送。",
+    "paths": [
+      "/api/ministry/receive",
+      "/api/ministry/file"
+    ],
+    "fixture_cases": {
+      "302": "policy_302",
+      "303": "platform_event_303",
+      "307": "test_data_307_tst_type_1",
+      "309": "device_cmd_309",
+      "399": "unknown_subtype_399",
+      "file_103": "file_103"
+    },
+    "default_send_cases": [
+      "policy_302",
+      "file_103"
+    ]
+  },
+  "verification_modes": {
+    "observe": {
+      "purpose": "保护局部重构，记录当前项目行为，协议偏差只作为 warning",
+      "expected_exit_code_when_warnings_only": 0
+    },
+    "contract": {
+      "purpose": "以原始协议/产品要求为标准答案，协议偏差作为 failure",
+      "expected_exit_code_when_warnings_only": 1
+    }
+  },
+  "notes": [
+    "第一阶段不做真实 SM2/SM4 解密，只识别 envelope、orderID、subtype 和 X-Enc-* 头是否存在。",
+    "/api/v1/platformFileUpload 是当前后端文件上报代码里的路径，保留用于发现和协议目标 /ministry/file 的偏差。",
+    "后续新增其他外部模拟时，与 protocol_ministry_platform 平级放置。"
+  ]
+}

@@ -16,7 +16,15 @@ def test_server_accepts_receive_post(tmp_path) -> None:
 
     try:
         host, port = server.server_address
-        body = json.dumps({"orderID": "test", "reqMsgCnt": "{}"}).encode("utf-8")
+        body = json.dumps(
+            {
+                "orderID": "2-301-2026070300000000001",
+                "orgCode": "MIIT",
+                "ispCode": "CMCC",
+                "ctxCode": 0,
+                "reqMsgCnt": json.dumps({"orderType": 2, "orderSubType": 301}),
+            }
+        ).encode("utf-8")
         request = Request(
             f"http://{host}:{port}/ministry/receive",
             data=body,
