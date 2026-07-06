@@ -1,0 +1,27 @@
+{
+  "name": "platform_file_306",
+  "description": "接口32 下级平台文件上传业务报文样例",
+  "outer": {
+    "orderID": "2-306-2026070500000000001",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "dataType": 2,
+    "dataSubType": 306,
+    "timeStamp": "20260705120000",
+    "data": {
+      "fileInfoLst": [
+        {
+          "fileID": "file001",
+          "fileName": "platform-log.tar.gz",
+          "svcType": 11,
+          "dataType": "file",
+          "objectID": "LOG00000000000000000000000000001"
+        }
+      ]
+    },
+    "sign": ""
+  }
+}

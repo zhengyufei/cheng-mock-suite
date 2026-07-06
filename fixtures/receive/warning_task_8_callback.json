@@ -1,0 +1,30 @@
+{
+  "name": "warning_task_8_callback",
+  "description": "接口8 产品漏洞预警任务回调样例",
+  "outer": {
+    "orderID": "2-101-2026070500000000001",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "orderType": 2,
+    "orderSubType": 101,
+    "timeStamp": "20260705103000",
+    "vulInfoLst": {
+      "vulNum": 0,
+      "comVulLst": []
+    },
+    "tskRspParams": {
+      "tskProcIndication": 0,
+      "prcVulNum": 0,
+      "prcPwNum": 0,
+      "toPrcAstNum": 1,
+      "prcAstNum": 1,
+      "exRsnLst": [-1, -1, -1, -1, -1, -1, -1, -1],
+      "exRsnNumLst": [-1, -1, -1, -1, -1, -1, -1, -1],
+      "logNum": 0
+    },
+    "sign": ""
+  }
+}

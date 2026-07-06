@@ -1,0 +1,36 @@
+{
+  "name": "platform_log_305",
+  "description": "接口31 下级平台日志上报样例",
+  "outer": {
+    "orderID": "2-305-2026070500000000001",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "dataType": 2,
+    "dataSubType": 305,
+    "timeStamp": "20260705113000",
+    "logInfoReqParams": {
+      "logReqSeq": 1,
+      "logReqNote": "mock platform log",
+      "dataFileID": "2-305-2026070500000000001",
+      "numLogs": 1,
+      "logInfo": [
+        {
+          "timeStamp": "1783274400",
+          "devHash": "mock-platform-001",
+          "loginAccount": "system",
+          "logID": "LOG00000000000000000000000000001",
+          "logType": 1020,
+          "logLvl": 3,
+          "opCode": 1,
+          "opRslt": 0,
+          "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "chainHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ]
+    },
+    "sign": ""
+  }
+}

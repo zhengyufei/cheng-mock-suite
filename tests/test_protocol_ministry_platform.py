@@ -4,6 +4,8 @@ import json
 import threading
 from urllib.request import Request, urlopen
 
+import pytest
+
 from mock_ministry.mocks.protocol_ministry_platform.contracts import (
     BACKEND_FILE_PATH,
     BACKEND_RECEIVE_PATH,
@@ -52,6 +54,34 @@ def test_receive_inspector_extracts_data_subtype_from_plain_inner_message() -> N
     assert observation.sub_type == 302
     assert observation.message_family == "data"
     assert not observation.encrypted_or_opaque
+
+
+@pytest.mark.parametrize(
+    ("order_id", "inner", "error_fragment"),
+    [
+        ("2-303-2026070300000000001", {"dataType": True, "dataSubType": 303}, "invalid route field"),
+        ("2-303-2026070300000000001", {"dataType": 2, "dataSubType": 303.0}, "invalid route field"),
+        ("2-303-2026070300000000001", {"dataType": 2, "dataSubType": "303"}, "invalid route field"),
+        ("2-303-2026070300000000001", {"orderType": 2, "orderSubType": 303, "dataType": 2, "dataSubType": 304}, "conflicting route fields"),
+        ("2-302-2026070300000000001", {"dataType": 2, "dataSubType": 303}, "does not match orderID route"),
+    ],
+)
+def test_receive_inspector_rejects_coerced_or_mismatched_inner_route(order_id, inner, error_fragment) -> None:
+    body = {
+        "orderID": order_id,
+        "orgCode": "MIIT",
+        "ispCode": "CMCC",
+        "ctxCode": 0,
+        "reqMsgCnt": json.dumps(inner, ensure_ascii=False),
+    }
+
+    observation = inspect_receive_body(
+        raw_body=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert not observation.is_valid
+    assert any(error_fragment in error for error in observation.errors)
 
 
 def test_receive_inspector_accepts_encrypted_response_with_orderid_fallback() -> None:

@@ -19,7 +19,7 @@ EXPECTED_BUSINESS_STATUS_BY_CASE = {
     "unknown_subtype_399": 1,
 }
 
-DEFAULT_SEND_CASES = ["policy_302", "file_103"]
+DEFAULT_SEND_CASES = ["policy_302", "prod_vul_workorder_5_request"]
 
 
 def _url(base_url: str, path: str) -> str:

@@ -115,6 +115,59 @@ def _parse_inner_content(raw_content: Any, observation: ProtocolObservation) -> 
     return None
 
 
+def _strict_route_value(observation: ProtocolObservation, value: Any, field: str) -> int | None:
+    if type(value) is not int:
+        observation.errors.append(f"invalid route field: {field}={value!r}")
+        return None
+    return value
+
+
+def _matching_route_alias_value(
+    observation: ProtocolObservation,
+    inner: dict[str, Any],
+    primary: str,
+    secondary: str,
+) -> int | None:
+    primary_present = primary in inner and inner.get(primary) is not None
+    secondary_present = secondary in inner and inner.get(secondary) is not None
+    if not primary_present and not secondary_present:
+        return None
+
+    primary_value = _strict_route_value(observation, inner.get(primary), primary) if primary_present else None
+    secondary_value = _strict_route_value(observation, inner.get(secondary), secondary) if secondary_present else None
+    if primary_value is not None and secondary_value is not None and primary_value != secondary_value:
+        observation.errors.append(
+            f"conflicting route fields: {primary}={inner.get(primary)}, {secondary}={inner.get(secondary)}"
+        )
+        return None
+    return primary_value if primary_value is not None else secondary_value
+
+
+def _ensure_inner_route_matches_order_id(
+    observation: ProtocolObservation,
+    inner_type: int | None,
+    inner_subtype: int | None,
+) -> None:
+    if (
+        observation.order_type is not None
+        and inner_type is not None
+        and observation.order_type != inner_type
+    ):
+        observation.errors.append(
+            f"payload route {inner_type}-{inner_subtype or observation.sub_type} "
+            f"does not match orderID route {observation.order_type}-{observation.sub_type}"
+        )
+    if (
+        observation.sub_type is not None
+        and inner_subtype is not None
+        and observation.sub_type != inner_subtype
+    ):
+        observation.errors.append(
+            f"payload route {inner_type or observation.order_type}-{inner_subtype} "
+            f"does not match orderID route {observation.order_type}-{observation.sub_type}"
+        )
+
+
 def _apply_inner_routing(observation: ProtocolObservation, inner: dict[str, Any] | None) -> None:
     if not inner:
         if observation.order_type is not None and observation.sub_type is not None:
@@ -123,17 +176,16 @@ def _apply_inner_routing(observation: ProtocolObservation, inner: dict[str, Any]
 
     if "dataType" in inner or "dataSubType" in inner:
         observation.message_family = "data"
-        inner_type = inner.get("dataType")
-        inner_subtype = inner.get("dataSubType")
     else:
         observation.message_family = "order"
-        inner_type = inner.get("orderType")
-        inner_subtype = inner.get("orderSubType")
 
+    inner_type = _matching_route_alias_value(observation, inner, "orderType", "dataType")
+    inner_subtype = _matching_route_alias_value(observation, inner, "orderSubType", "dataSubType")
+    _ensure_inner_route_matches_order_id(observation, inner_type, inner_subtype)
     if inner_type is not None:
-        observation.order_type = int(inner_type)
+        observation.order_type = inner_type
     if inner_subtype is not None:
-        observation.sub_type = int(inner_subtype)
+        observation.sub_type = inner_subtype
 
 
 def inspect_receive_body(

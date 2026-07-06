@@ -1,0 +1,26 @@
+{
+  "name": "prod_vul_workorder_6_callback",
+  "description": "接口6 产品漏洞工单回传样例",
+  "outer": {
+    "orderID": "1-21-2026070500000000001",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "orderType": 1,
+    "orderSubType": 21,
+    "timeStamp": "20260705093000",
+    "vulTktRspParams": {
+      "dstVulStat": [1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+      "sucVulNum": [1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+      "tktResult": 0,
+      "tktInfo": "mock callback complete"
+    },
+    "vulIdLst": {
+      "idLst": ["PV-001"],
+      "vulNum": 1
+    },
+    "sign": ""
+  }
+}

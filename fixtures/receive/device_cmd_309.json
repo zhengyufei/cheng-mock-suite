@@ -2,7 +2,7 @@
   "name": "device_cmd_309",
   "description": "设备指令 dataSubType=309 样例",
   "outer": {
-    "orderID": "2-309-2026070300000000001",
+    "orderID": "2-309-2026070500000000001",
     "orgCode": "MIIT",
     "ispCode": "CMCC",
     "ctxCode": 0
@@ -10,9 +10,11 @@
   "inner": {
     "dataType": 2,
     "dataSubType": 309,
-    "timeStamp": "20260703100200",
-    "deviceId": "mock-device-001",
-    "command": "refreshConfig",
+    "timeStamp": "20260705100200",
+    "registerReqParams": {
+      "engHash": "mock-device-001",
+      "reqAct": 1
+    },
     "sign": ""
   }
 }

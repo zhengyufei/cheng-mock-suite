@@ -1,0 +1,31 @@
+{
+  "name": "platform_status_304",
+  "description": "接口30 下级平台状态消息上报样例",
+  "outer": {
+    "orderID": "2-304-2026070500000000001",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "dataType": 2,
+    "dataSubType": 304,
+    "timeStamp": "20260705110000",
+    "devInfoReqParams": {
+      "devHash": "mock-platform-001",
+      "devType": 1,
+      "devIp": "192.0.2.20",
+      "devInfoObj": {
+        "status": "online"
+      },
+      "monitDataObj": {
+        "cpu": 10
+      },
+      "netTrafficObj": {
+        "in": 1,
+        "out": 1
+      }
+    },
+    "sign": ""
+  }
+}

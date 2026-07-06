@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from mock_ministry.mocks.protocol_ministry_platform.runner import run_refactor_check
+from mock_ministry.mocks.protocol_ministry_platform.runner import DEFAULT_SEND_CASES, run_refactor_check
 
 
 class FakeBackendHandler(BaseHTTPRequestHandler):
@@ -68,7 +68,7 @@ def _set_backend_response(
 def test_runner_sends_selected_fixture_to_running_backend(tmp_path) -> None:
     FakeBackendHandler.received_paths = []
     _set_backend_response({
-        "orderID": "2-302-2026070300000000001",
+        "orderID": "2-302-2026070500000000001",
         "statusCode": 0,
         "statusText": "fake backend accepted",
         "rspMsgCnt": "cipher",
@@ -105,7 +105,7 @@ def test_runner_sends_selected_fixture_to_running_backend(tmp_path) -> None:
 def test_contract_runner_fails_on_http_200_business_error(tmp_path) -> None:
     FakeBackendHandler.received_paths = []
     _set_backend_response({
-        "orderID": "2-302-2026070300000000001",
+        "orderID": "2-302-2026070500000000001",
         "statusCode": 133,
         "statusText": "system exception",
         "rspMsgCnt": "cipher",
@@ -139,7 +139,7 @@ def test_contract_runner_fails_on_http_200_business_error(tmp_path) -> None:
 def test_contract_runner_accepts_unknown_subtype_status_one(tmp_path) -> None:
     FakeBackendHandler.received_paths = []
     _set_backend_response({
-        "orderID": "2-399-2026070300000000001",
+        "orderID": "2-399-2026070500000000001",
         "statusCode": 1,
         "statusText": "id not found",
         "rspMsgCnt": "cipher",
@@ -171,22 +171,22 @@ def test_contract_runner_accepts_unknown_subtype_status_one(tmp_path) -> None:
     "body, headers, failure",
     [
         (
-            {"orderID": "2-302-2026070300000000001", "statusCode": 0, "statusText": "ok"},
+            {"orderID": "2-302-2026070500000000001", "statusCode": 0, "statusText": "ok"},
             None,
             "policy_302 returned missing rspMsgCnt",
         ),
         (
-            {"orderID": "2-302-2026070300000000001", "statusCode": 0, "rspMsgCnt": "cipher"},
+            {"orderID": "2-302-2026070500000000001", "statusCode": 0, "rspMsgCnt": "cipher"},
             None,
             "policy_302 returned missing or invalid statusText",
         ),
         (
             {"orderID": "wrong", "statusCode": 0, "statusText": "ok", "rspMsgCnt": "cipher"},
             None,
-            "policy_302 returned orderID 'wrong', expected '2-302-2026070300000000001'",
+            "policy_302 returned orderID 'wrong', expected '2-302-2026070500000000001'",
         ),
         (
-            {"orderID": "2-302-2026070300000000001", "statusCode": 0, "statusText": "ok", "rspMsgCnt": "cipher"},
+            {"orderID": "2-302-2026070500000000001", "statusCode": 0, "statusText": "ok", "rspMsgCnt": "cipher"},
             {"X-Enc-Key": "key", "X-Enc-Key-G": "group-key", "X-Enc-Nonce": "nonce"},
             "policy_302 missing response header X-Enc-Auth-Tag",
         ),
@@ -224,7 +224,7 @@ def test_contract_runner_rejects_incomplete_response_envelope(tmp_path, body, he
 def test_contract_runner_rejects_unknown_subtype_system_exception(tmp_path) -> None:
     FakeBackendHandler.received_paths = []
     _set_backend_response({
-        "orderID": "2-399-2026070300000000001",
+        "orderID": "2-399-2026070500000000001",
         "statusCode": 133,
         "statusText": "system exception",
         "rspMsgCnt": "cipher",
@@ -333,14 +333,23 @@ def test_runner_cli_does_not_duplicate_explicit_send_case(tmp_path) -> None:
     assert FakeBackendHandler.received_paths == ["/api/ministry/receive"]
 
 
-def test_runner_cli_default_contract_suite_includes_file_endpoint(tmp_path) -> None:
+def test_runner_default_send_cases_match_manifest() -> None:
+    manifest = json.loads(
+        (Path(__file__).resolve().parents[1] / "fixtures" / "protocol_ministry_platform" / "manifest.json")
+        .read_text(encoding="utf-8")
+    )
+
+    assert DEFAULT_SEND_CASES == manifest["send_to_backend"]["default_send_cases"]
+
+
+def test_runner_cli_default_suite_uses_manifest_representative_cases(tmp_path) -> None:
     FakeBackendHandler.received_paths = []
 
     def response_for_path(path: str) -> dict:
         order_id = (
             "2-103-2026070300000000001"
             if path == "/api/ministry/file"
-            else "2-302-2026070300000000001"
+            else "2-302-2026070500000000001"
         )
         return {
             "orderID": order_id,
@@ -367,7 +376,7 @@ def test_runner_cli_default_contract_suite_includes_file_endpoint(tmp_path) -> N
                 "--mock-port",
                 "0",
                 "--mode",
-                "contract",
+                "observe",
             ],
             text=True,
             capture_output=True,
@@ -380,8 +389,11 @@ def test_runner_cli_default_contract_suite_includes_file_endpoint(tmp_path) -> N
 
     assert result.returncode == 0
     payload = json.loads(result.stdout)
-    assert [call["case"] for call in payload["backend_calls"]] == ["policy_302", "file_103"]
-    assert FakeBackendHandler.received_paths == ["/api/ministry/receive", "/api/ministry/file"]
+    assert [call["case"] for call in payload["backend_calls"]] == [
+        "policy_302",
+        "prod_vul_workorder_5_request",
+    ]
+    assert FakeBackendHandler.received_paths == ["/api/ministry/receive", "/api/ministry/receive"]
 
 
 def test_contract_runner_rejects_file_case_missing_file_auth_tag(tmp_path) -> None:

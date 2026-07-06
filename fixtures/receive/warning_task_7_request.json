@@ -1,0 +1,29 @@
+{
+  "name": "warning_task_7_request",
+  "description": "接口7 产品漏洞预警任务下发样例",
+  "outer": {
+    "orderID": "2-101-2026070500000000001",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "orderType": 2,
+    "orderSubType": 101,
+    "timeStamp": "20260705100000",
+    "vulInfoRange": "eyJ0YXJnZXQiOiIxOTIuMC4yLjEwIn0=",
+    "procTime": "20260705000000-20260706000000",
+    "tskReqParams": {
+      "tskType": 1,
+      "tskPriority": 1,
+      "tskSLA": 24,
+      "tskInfo": "mock warning task"
+    },
+    "targetList": [
+      {
+        "ip": "192.0.2.10"
+      }
+    ],
+    "sign": ""
+  }
+}

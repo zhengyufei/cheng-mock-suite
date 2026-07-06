@@ -2,7 +2,7 @@
   "name": "unknown_subtype_399",
   "description": "未知 dataSubType=399 样例",
   "outer": {
-    "orderID": "2-399-2026070300000000001",
+    "orderID": "2-399-2026070500000000001",
     "orgCode": "MIIT",
     "ispCode": "CMCC",
     "ctxCode": 0
@@ -10,7 +10,7 @@
   "inner": {
     "dataType": 2,
     "dataSubType": 399,
-    "timeStamp": "20260703100400",
+    "timeStamp": "20260705100400",
     "note": "unknown subtype negative fixture",
     "sign": ""
   }
