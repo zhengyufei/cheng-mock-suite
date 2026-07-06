@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 import requests
 
 from mock_ministry.cases import build_plain_envelope, load_case
+from mock_ministry.negative_cases import build_negative_case
 from mock_ministry.recorder import FileRecorder
 
 from .assertions import evaluate_records
@@ -96,6 +97,8 @@ def _response_status_code(call: dict[str, Any]) -> tuple[int | None, str | None]
 
 
 def _expected_business_status(call: dict[str, Any]) -> int | None:
+    if "expected_business_status" in call:
+        return int(call["expected_business_status"])
     case_name = call.get("case")
     if not case_name:
         return None
@@ -202,6 +205,7 @@ def run_refactor_check(
     mode: str,
     send_cases: list[str],
     outbound_paths: list[str],
+    negative_cases: list[str] | None = None,
     mock_host: str = "127.0.0.1",
     mock_port: int = 18080,
 ) -> dict[str, Any]:
@@ -220,6 +224,15 @@ def run_refactor_check(
                 payload = build_plain_envelope(load_case(case_name))
                 result = _post_json(backend_base_url, "/api/ministry/receive", payload)
             result["case"] = case_name
+            backend_calls.append(result)
+
+        for negative_name in negative_cases or []:
+            case, expected_status = build_negative_case(negative_name)
+            payload = build_plain_envelope(case)
+            result = _post_json(backend_base_url, "/api/ministry/receive", payload)
+            result["case"] = negative_name
+            result["fixture_case"] = case.get("base_case")
+            result["expected_business_status"] = expected_status
             backend_calls.append(result)
 
         for path in outbound_paths:

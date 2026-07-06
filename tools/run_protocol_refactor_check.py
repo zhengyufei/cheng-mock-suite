@@ -21,6 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mock-host", default="127.0.0.1")
     parser.add_argument("--mock-port", type=int, default=18080)
     parser.add_argument("--send-case", action="append", default=[])
+    parser.add_argument("--negative-case", action="append", default=[])
     parser.add_argument("--outbound-path", action="append", default=[])
     parser.add_argument("--output")
     return parser.parse_args()
@@ -34,6 +35,7 @@ def main() -> int:
         mode=args.mode,
         send_cases=args.send_case or DEFAULT_SEND_CASES,
         outbound_paths=args.outbound_path,
+        negative_cases=args.negative_case,
         mock_host=args.mock_host,
         mock_port=args.mock_port,
     )

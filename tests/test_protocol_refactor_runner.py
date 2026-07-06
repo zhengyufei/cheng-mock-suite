@@ -167,6 +167,41 @@ def test_contract_runner_accepts_unknown_subtype_status_one(tmp_path) -> None:
     assert result["report"]["sections"]["backend"]["ok"] is True
 
 
+def test_contract_runner_sends_negative_case_with_expected_status(tmp_path) -> None:
+    FakeBackendHandler.received_paths = []
+    _set_backend_response({
+        "orderID": "2-101-2026070500000000001",
+        "statusCode": 6,
+        "statusText": "missing required param",
+        "rspMsgCnt": "cipher",
+    })
+    backend = ThreadingHTTPServer(("127.0.0.1", 0), FakeBackendHandler)
+    thread = threading.Thread(target=backend.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        host, port = backend.server_address
+        result = run_refactor_check(
+            backend_base_url=f"http://{host}:{port}",
+            record_dir=tmp_path / "mock-server",
+            mode="contract",
+            send_cases=[],
+            negative_cases=["missing_tskRspParams"],
+            outbound_paths=[],
+            mock_port=0,
+        )
+    finally:
+        backend.shutdown()
+        thread.join(timeout=5)
+        backend.server_close()
+
+    assert result["report"]["ok"] is True
+    assert result["backend_calls"][0]["case"] == "missing_tskRspParams"
+    assert result["backend_calls"][0]["fixture_case"] == "warning_task_8_callback"
+    assert result["backend_calls"][0]["expected_business_status"] == 6
+    assert FakeBackendHandler.received_paths == ["/api/ministry/receive"]
+
+
 @pytest.mark.parametrize(
     "body, headers, failure",
     [
