@@ -1,0 +1,30 @@
+{
+  "name": "tas_stat_202",
+  "description": "interface 26 ledger statistics regression case, dataType=1 dataSubType=202",
+  "outer": {
+    "orderID": "1-202-2026070500000000001",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "dataType": 1,
+    "dataSubType": 202,
+    "timeStamp": "20260705102600",
+    "procTime": "20260705000000-20260706000000",
+    "staReqParams": {
+      "tasStaObj": {
+        "taskType": "108:20,103:45,110:3",
+        "logType": "108:234,103:135,110:150"
+      },
+      "numVulInfo": -1,
+      "astNum": -1,
+      "vulNum": -1,
+      "pwdNum": -1,
+      "prcAstNum": -1,
+      "exRsnLst": [-1, -1, -1, -1, -1, -1, -1, -1],
+      "exRsnNumLst": [0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    "sign": ""
+  }
+}

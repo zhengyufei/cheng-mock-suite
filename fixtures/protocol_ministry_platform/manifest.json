@@ -1,6 +1,6 @@
 {
   "mock": "protocol-ministry-platform",
-  "description": "协议级部侧监管平台 mock，覆盖 gate-ministry-entry-contract 当前会重构和验证的外部边界。",
+  "description": "协议级部侧监管平台 mock，覆盖 gate-ministry-entry-contract 和 zheng-protocol-interfaces 当前接口重构影响面。",
   "receive_from_backend": {
     "description": "本系统主动推送到部侧监管平台，由此 mock 接收。",
     "paths": [
@@ -13,7 +13,9 @@
       "308": "安全设备注册",
       "104": "产品漏洞上传",
       "105": "口令字典上传",
-      "201": "指令统计上报"
+      "201": "指令统计上报",
+      "202": "台账统计上报",
+      "203": "系统漏洞常态化上报"
     }
   },
   "send_to_backend": {
@@ -27,16 +29,64 @@
       "6": "prod_vul_workorder_6_callback",
       "7": "warning_task_7_request",
       "8": "warning_task_8_callback",
+      "15": "policy_302",
+      "16": "policy_302_interface_16",
+      "17": "test_data_307_tst_type_1",
+      "18": "test_data_307_tst_type_2",
+      "19": "test_data_307_tst_type_3",
+      "20": "test_data_307_tst_type_4",
+      "21": "test_data_307_tst_type_5",
+      "22": "test_data_307_tst_type_6",
+      "23": "device_register_308",
+      "24": "device_cmd_309",
+      "25": "command_stat_201",
+      "26": "tas_stat_202",
+      "27": "sys_vul_stat_203",
+      "28": "platform_register_301",
+      "29": "platform_event_303",
+      "30": "platform_status_304",
+      "31": "platform_log_305",
+      "32": "platform_file_306",
+      "33": "file_103",
       "302": "policy_302",
       "303": "platform_event_303",
       "304": "platform_status_304",
       "305": "platform_log_305",
       "306": "platform_file_306",
       "307": "test_data_307_tst_type_1",
+      "308": "device_register_308",
       "309": "device_cmd_309",
       "399": "unknown_subtype_399",
       "file_103": "file_103"
     },
+    "delivery_send_cases": [
+      "prod_vul_workorder_5_request",
+      "prod_vul_workorder_6_callback",
+      "warning_task_7_request",
+      "warning_task_8_callback",
+      "policy_302",
+      "device_cmd_309",
+      "platform_event_303",
+      "platform_status_304",
+      "platform_log_305",
+      "platform_file_306"
+    ],
+    "regression_send_cases": [
+      "policy_302_interface_16",
+      "test_data_307_tst_type_1",
+      "test_data_307_tst_type_2",
+      "test_data_307_tst_type_3",
+      "test_data_307_tst_type_4",
+      "test_data_307_tst_type_5",
+      "test_data_307_tst_type_6",
+      "device_register_308",
+      "command_stat_201",
+      "tas_stat_202",
+      "sys_vul_stat_203",
+      "platform_register_301",
+      "file_103",
+      "unknown_subtype_399"
+    ],
     "default_send_cases": [
       "policy_302",
       "prod_vul_workorder_5_request"
@@ -48,13 +98,13 @@
       "expected_exit_code_when_warnings_only": 0
     },
     "contract": {
-      "purpose": "以原始协议/产品要求为标准答案，协议偏差作为 failure",
+      "purpose": "以原始协议和产品要求为标准答案，协议偏差作为 failure",
       "expected_exit_code_when_warnings_only": 1
     }
   },
   "notes": [
     "第一阶段不做真实 SM2/SM4 解密，只识别 envelope、orderID、subtype 和 X-Enc-* 头是否存在。",
-    "/api/v1/platformFileUpload 是当前后端文件上报代码里的路径，保留用于发现和协议目标 /ministry/file 的偏差。",
-    "后续新增其他外部模拟时，与 protocol_ministry_platform 平级放置。"
+    "接口33文件通道用 file_103 runner case 表示，它发送到 /api/ministry/file。",
+    "当前 feature 交付接口和统一入口重构回归接口分开记录，避免把回归覆盖误写成完整业务闭环。"
   ]
 }

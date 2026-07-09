@@ -1,0 +1,42 @@
+{
+  "name": "device_register_308",
+  "description": "interface 23 device register regression case, dataSubType=308",
+  "outer": {
+    "orderID": "2-308-2026070500000000001",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "dataType": 2,
+    "dataSubType": 308,
+    "timeStamp": "20260705102300",
+    "engLst": {
+      "engNum": 1,
+      "engDevs": [
+        {
+          "engHash": "device-register-001",
+          "engType": 1
+        }
+      ]
+    },
+    "engRegParams": {
+      "engNum": 1,
+      "engRegInfo": [
+        {
+          "vendor": "mock-vendor",
+          "engName": "mock-engine",
+          "engVer": "1.0",
+          "devIp": "192.0.2.23",
+          "reqAct": 0,
+          "status": 0,
+          "engDev": {
+            "engHash": "device-register-001",
+            "engType": 1
+          }
+        }
+      ]
+    },
+    "sign": ""
+  }
+}

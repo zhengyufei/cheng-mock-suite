@@ -1,0 +1,20 @@
+{
+  "name": "platform_register_301",
+  "description": "interface 28 platform register regression case, dataSubType=301",
+  "outer": {
+    "orderID": "2-301-2026070500000000001",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "dataType": 2,
+    "dataSubType": 301,
+    "timeStamp": "20260705102800",
+    "registerReqParams": {
+      "devHash": "platform-register-001",
+      "devIp": "192.0.2.28"
+    },
+    "sign": ""
+  }
+}

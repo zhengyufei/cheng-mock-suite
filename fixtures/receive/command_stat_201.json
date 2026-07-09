@@ -1,0 +1,29 @@
+{
+  "name": "command_stat_201",
+  "description": "interface 25 command statistics regression case, dataType=1 dataSubType=201",
+  "outer": {
+    "orderID": "1-201-2026070500000000001",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "dataType": 1,
+    "dataSubType": 201,
+    "timeStamp": "20260705102500",
+    "procTime": "20260705000000-20260706000000",
+    "staReqParams": {
+      "workOrderDataObj": {
+        "localTotal": "1-0:20,3-1:15,33-5:8"
+      },
+      "numVulInfo": -1,
+      "astNum": -1,
+      "vulNum": -1,
+      "pwdNum": -1,
+      "prcAstNum": -1,
+      "exRsnLst": [-1, -1, -1, -1, -1, -1, -1, -1],
+      "exRsnNumLst": [0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    "sign": ""
+  }
+}

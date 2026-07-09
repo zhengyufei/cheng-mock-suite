@@ -1,0 +1,24 @@
+{
+  "name": "policy_302_interface_16",
+  "description": "interface 16 policy negotiation regression case sharing dataSubType=302",
+  "outer": {
+    "orderID": "2-302-2026070500000000016",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "dataType": 2,
+    "dataSubType": 302,
+    "timeStamp": "20260705101600",
+    "polyReqParams": {
+      "reptPerd": 24,
+      "sycPerd": 24,
+      "reptNum": 100,
+      "sycNum": 100,
+      "perdType": 0,
+      "devHash": "platform-dev-016"
+    },
+    "sign": ""
+  }
+}

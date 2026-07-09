@@ -1,0 +1,37 @@
+{
+  "name": "sys_vul_stat_203",
+  "description": "interface 27 system vulnerability statistics regression case, dataType=1 dataSubType=203",
+  "outer": {
+    "orderID": "1-203-2026070500000000001",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "dataType": 1,
+    "dataSubType": 203,
+    "timeStamp": "20260705102700",
+    "procTime": "20260705000000-20260706000000",
+    "staReqParams": {
+      "numVulInfo": 1,
+      "astNum": 1,
+      "vulNum": 1,
+      "pwdNum": -1,
+      "prcAstNum": 1,
+      "exRsnLst": [-1, -1, -1, -1, -1, -1, -1, 99],
+      "exRsnNumLst": [0, 0, 0, 0, 0, 0, 0, 1000]
+    },
+    "data": {
+      "fileInfoLst": [
+        {
+          "fileID": "sysvulstat203file001",
+          "fileName": "system-vulnerability-stat.json",
+          "svcType": 12,
+          "dataType": "json",
+          "objectID": "1-203-2026070500000000001"
+        }
+      ]
+    },
+    "sign": ""
+  }
+}

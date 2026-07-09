@@ -1,0 +1,25 @@
+{
+  "name": "test_data_307_tst_type_5",
+  "description": "interface 21 test data regression case, dataSubType=307 tstType=5",
+  "outer": {
+    "orderID": "2-307-2026070500000000005",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "dataType": 2,
+    "dataSubType": 307,
+    "tstType": 5,
+    "procTime": "20260705000000-20260706000000",
+    "vulInfoRange": "KHZ1bEtleXMudnVsTmFtZSBsaWtlICclJUNWRSUlJyk=",
+    "tstReqParams": {
+      "logType": 1,
+      "orderIDLst": "2-307-2026070500000000005",
+      "tstType": 5,
+      "opCode": 1
+    },
+    "timeStamp": "20260705170500",
+    "sign": ""
+  }
+}

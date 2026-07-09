@@ -1,0 +1,34 @@
+{
+  "name": "test_data_307_tst_type_4",
+  "description": "interface 20 test data regression case, dataSubType=307 tstType=4",
+  "outer": {
+    "orderID": "2-307-2026070500000000004",
+    "orgCode": "MIIT",
+    "ispCode": "CMCC",
+    "ctxCode": 0
+  },
+  "inner": {
+    "dataType": 2,
+    "dataSubType": 307,
+    "tstType": 4,
+    "tstReqParams": {
+      "logType": 1,
+      "orderIDLst": "2-307-2026070500000000004",
+      "tstType": 4,
+      "opCode": 1
+    },
+    "timeStamp": "20260705170400",
+    "data": {
+      "fileInfoLst": [
+        {
+          "fileID": "testdata307t4file001",
+          "fileName": "vpt-file.json",
+          "svcType": 5,
+          "dataType": "json",
+          "objectID": "2-307-2026070500000000004"
+        }
+      ]
+    },
+    "sign": ""
+  }
+}
