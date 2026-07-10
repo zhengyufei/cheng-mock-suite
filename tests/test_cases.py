@@ -89,6 +89,9 @@ def test_negative_mutations_cover_feature_interface_groups() -> None:
         "unsafe_fileID",
         "invalid_fileID_type",
         "invalid_fileName_type",
+        "missing_test_data_tst_type",
+        "invalid_test_data_tst_type",
+        "missing_test_data_file_metadata",
         "missing_event_type",
         "invalid_event_type",
         "coerced_event_type",
@@ -127,3 +130,25 @@ def test_build_negative_case_returns_mutated_fixture_and_expected_status() -> No
     assert "tskRspParams" not in inner
     assert inner["orderType"] == 2
     assert inner["orderSubType"] == 101
+
+
+def test_build_test_data_307_negative_cases() -> None:
+    missing_case, missing_expected_status = build_negative_case("missing_test_data_tst_type")
+    invalid_case, invalid_expected_status = build_negative_case("invalid_test_data_tst_type")
+    file_case, file_expected_status = build_negative_case("missing_test_data_file_metadata")
+
+    missing_inner = json.loads(build_plain_envelope(missing_case)["reqMsgCnt"])
+    invalid_inner = json.loads(build_plain_envelope(invalid_case)["reqMsgCnt"])
+    file_inner = json.loads(build_plain_envelope(file_case)["reqMsgCnt"])
+
+    assert missing_expected_status == 0
+    assert invalid_expected_status == 0
+    assert file_expected_status == 0
+    assert NEGATIVE_MUTATIONS["missing_test_data_tst_type"]["expected_business_result"] == 1
+    assert NEGATIVE_MUTATIONS["invalid_test_data_tst_type"]["expected_business_result"] == 1
+    assert NEGATIVE_MUTATIONS["missing_test_data_file_metadata"]["expected_business_result"] == 1
+    assert missing_inner["dataSubType"] == 307
+    assert "tstType" not in missing_inner["tstReqParams"]
+    assert invalid_inner["tstReqParams"]["tstType"] == "bad"
+    assert file_inner["tstReqParams"]["tstType"] == 1
+    assert file_inner["data"]["fileInfoLst"] == [{"fileID": "td307-missing-metadata"}]

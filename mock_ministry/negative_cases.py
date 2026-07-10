@@ -205,6 +205,33 @@ NEGATIVE_MUTATIONS: dict[str, dict[str, Any]] = {
         ),
         "expected_status_code": 7,
     },
+    "missing_test_data_tst_type": {
+        "case": "test_data_307_tst_type_1",
+        "mutate": lambda inner: (
+            inner.pop("tstType", None),
+            inner["tstReqParams"].pop("tstType", None),
+        ),
+        "expected_status_code": 0,
+        "expected_business_result": 1,
+    },
+    "invalid_test_data_tst_type": {
+        "case": "test_data_307_tst_type_1",
+        "mutate": lambda inner: (
+            inner.__setitem__("tstType", "bad"),
+            inner["tstReqParams"].__setitem__("tstType", "bad"),
+        ),
+        "expected_status_code": 0,
+        "expected_business_result": 1,
+    },
+    "missing_test_data_file_metadata": {
+        "case": "test_data_307_tst_type_1",
+        "mutate": lambda inner: inner["data"].__setitem__(
+            "fileInfoLst",
+            [{"fileID": "td307-missing-metadata"}],
+        ),
+        "expected_status_code": 0,
+        "expected_business_result": 1,
+    },
     "missing_event_type": {
         "case": "platform_event_303",
         "mutate": lambda inner: inner["eventInfoReqParams"].pop("eventType"),
