@@ -202,6 +202,42 @@ def test_contract_runner_sends_negative_case_with_expected_status(tmp_path) -> N
     assert FakeBackendHandler.received_paths == ["/api/ministry/receive"]
 
 
+def test_contract_runner_rejects_307_negative_inner_business_success(tmp_path) -> None:
+    FakeBackendHandler.received_paths = []
+    _set_backend_response({
+        "orderID": "2-307-2026070300000000001",
+        "statusCode": 0,
+        "statusText": "fake backend accepted",
+        "rspMsgCnt": json.dumps({"tstResParams": {"tstProcRslt": 0}}),
+    })
+    backend = ThreadingHTTPServer(("127.0.0.1", 0), FakeBackendHandler)
+    thread = threading.Thread(target=backend.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        host, port = backend.server_address
+        result = run_refactor_check(
+            backend_base_url=f"http://{host}:{port}",
+            record_dir=tmp_path / "mock-server",
+            mode="contract",
+            send_cases=[],
+            negative_cases=["missing_test_data_tst_type"],
+            outbound_paths=[],
+            mock_port=0,
+        )
+    finally:
+        backend.shutdown()
+        thread.join(timeout=5)
+        backend.server_close()
+
+    backend_report = result["report"]["sections"]["backend"]
+
+    assert result["report"]["ok"] is False
+    assert backend_report["ok"] is False
+    assert result["backend_calls"][0]["expected_business_result"] == 1
+    assert "missing_test_data_tst_type returned tstProcRslt 0, expected 1" in backend_report["failures"]
+
+
 @pytest.mark.parametrize(
     "body, headers, failure",
     [

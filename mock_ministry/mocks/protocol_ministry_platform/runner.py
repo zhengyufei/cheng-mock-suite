@@ -105,6 +105,12 @@ def _expected_business_status(call: dict[str, Any]) -> int | None:
     return EXPECTED_BUSINESS_STATUS_BY_CASE.get(str(case_name), 0)
 
 
+def _expected_business_result(call: dict[str, Any]) -> int | None:
+    if "expected_business_result" in call:
+        return int(call["expected_business_result"])
+    return None
+
+
 def _response_json(call: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
     try:
         body = json.loads(str(call.get("body", "")))
@@ -113,6 +119,29 @@ def _response_json(call: dict[str, Any]) -> tuple[dict[str, Any] | None, str | N
     if not isinstance(body, dict):
         return None, "invalid JSON body"
     return body, None
+
+
+def _response_tst_proc_rslt(call: dict[str, Any]) -> tuple[int | None, str | None]:
+    body, parse_error = _response_json(call)
+    if parse_error:
+        return None, parse_error
+    assert body is not None
+    rsp_msg_cnt = body.get("rspMsgCnt")
+    if not isinstance(rsp_msg_cnt, str) or not rsp_msg_cnt:
+        return None, "missing rspMsgCnt"
+    try:
+        inner = json.loads(rsp_msg_cnt)
+    except json.JSONDecodeError:
+        return None, "non-JSON rspMsgCnt"
+    if not isinstance(inner, dict):
+        return None, "non-object rspMsgCnt"
+    params = inner.get("tstResParams")
+    if not isinstance(params, dict):
+        return None, "missing tstResParams"
+    value = params.get("tstProcRslt")
+    if type(value) is not int:
+        return None, f"non-integer tstProcRslt {value}"
+    return value, None
 
 
 def _required_header(headers: dict[str, Any], name: str) -> str | None:
@@ -170,6 +199,25 @@ def _backend_report(calls: list[dict[str, Any]], mode: str) -> dict[str, Any]:
                 failures.append(message)
             else:
                 warnings.append(message)
+
+        expected_result = _expected_business_result(call)
+        if expected_result is not None:
+            actual_result, result_error = _response_tst_proc_rslt(call)
+            if result_error:
+                message = f"{call.get('case') or call['path']} returned {result_error}"
+                if mode == "contract":
+                    failures.append(message)
+                else:
+                    warnings.append(message)
+            elif actual_result != expected_result:
+                message = (
+                    f"{call.get('case') or call['path']} returned "
+                    f"tstProcRslt {actual_result}, expected {expected_result}"
+                )
+                if mode == "contract":
+                    failures.append(message)
+                else:
+                    warnings.append(message)
 
         envelope_failures = _envelope_failures(call)
         if envelope_failures:
@@ -233,6 +281,8 @@ def run_refactor_check(
             result["case"] = negative_name
             result["fixture_case"] = case.get("base_case")
             result["expected_business_status"] = expected_status
+            if "expected_business_result" in case:
+                result["expected_business_result"] = case["expected_business_result"]
             backend_calls.append(result)
 
         for path in outbound_paths:

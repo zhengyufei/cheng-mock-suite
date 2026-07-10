@@ -280,10 +280,13 @@ def build_negative_case(name: str) -> tuple[dict[str, Any], int]:
     outer = dict(fixture["outer"])
     if "outer" in mutation:
         outer.update(mutation["outer"])
-    return {
+    case = {
         **fixture,
         "name": name,
         "outer": outer,
         "inner": mutated_inner,
         "base_case": mutation["case"],
-    }, int(mutation["expected_status_code"])
+    }
+    if "expected_business_result" in mutation:
+        case["expected_business_result"] = int(mutation["expected_business_result"])
+    return case, int(mutation["expected_status_code"])
