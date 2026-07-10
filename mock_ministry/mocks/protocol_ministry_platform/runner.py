@@ -70,7 +70,11 @@ def _post_file_case(base_url: str) -> dict[str, Any]:
             timeout=10,
         )
     except requests.RequestException as exc:
-        return {"path": "/api/ministry/file", "status": 0, "body": f"request failed: {exc}"}
+        return {
+            "path": "/api/ministry/file",
+            "status": 0,
+            "body": f"request failed: {exc}",
+        }
 
     return {
         "path": "/api/ministry/file",
@@ -132,6 +136,11 @@ def _response_tst_proc_rslt(call: dict[str, Any]) -> tuple[int | None, str | Non
     try:
         inner = json.loads(rsp_msg_cnt)
     except json.JSONDecodeError:
+        if all(
+            _required_header(call.get("headers", {}), header)
+            for header in ("X-Enc-Key", "X-Enc-Key-G", "X-Enc-Nonce", "X-Enc-Auth-Tag")
+        ):
+            return None, "encrypted rspMsgCnt"
         return None, "non-JSON rspMsgCnt"
     if not isinstance(inner, dict):
         return None, "non-object rspMsgCnt"
@@ -159,7 +168,9 @@ def _envelope_failures(call: dict[str, Any]) -> list[str]:
     failures: list[str] = []
     expected_order_id = call.get("expected_order_id")
     if body.get("orderID") != expected_order_id:
-        failures.append(f"{case_label} returned orderID {body.get('orderID')!r}, expected {expected_order_id!r}")
+        failures.append(
+            f"{case_label} returned orderID {body.get('orderID')!r}, expected {expected_order_id!r}"
+        )
     if not isinstance(body.get("statusText"), str):
         failures.append(f"{case_label} returned missing or invalid statusText")
     if not isinstance(body.get("rspMsgCnt"), str) or not body.get("rspMsgCnt"):
@@ -182,6 +193,7 @@ def _backend_report(calls: list[dict[str, Any]], mode: str) -> dict[str, Any]:
         if int(call.get("status", 0)) < 200 or int(call.get("status", 0)) >= 300
     ]
     warnings = []
+    unverified_business_results = 0
     for call in calls:
         expected = _expected_business_status(call)
         if expected is None:
@@ -203,7 +215,13 @@ def _backend_report(calls: list[dict[str, Any]], mode: str) -> dict[str, Any]:
         expected_result = _expected_business_result(call)
         if expected_result is not None:
             actual_result, result_error = _response_tst_proc_rslt(call)
-            if result_error:
+            if result_error == "encrypted rspMsgCnt":
+                unverified_business_results += 1
+                warnings.append(
+                    f"{call.get('case') or call['path']} returned encrypted rspMsgCnt; "
+                    f"verify tstProcRslt={expected_result} through the acceptance persistence probe"
+                )
+            elif result_error:
                 message = f"{call.get('case') or call['path']} returned {result_error}"
                 if mode == "contract":
                     failures.append(message)
@@ -225,17 +243,31 @@ def _backend_report(calls: list[dict[str, Any]], mode: str) -> dict[str, Any]:
                 failures.extend(envelope_failures)
             else:
                 warnings.extend(envelope_failures)
-    return {"ok": not failures, "failures": failures, "warnings": warnings, "total": len(calls)}
+    return {
+        "ok": not failures,
+        "failures": failures,
+        "warnings": warnings,
+        "total": len(calls),
+        "unverified_business_results": unverified_business_results,
+    }
 
 
-def _evidence_report(record_file: Path, mode: str, should_have_evidence: bool) -> dict[str, Any]:
+def _evidence_report(
+    record_file: Path, mode: str, should_have_evidence: bool
+) -> dict[str, Any]:
     if not should_have_evidence:
         return {
             "mode": mode,
             "ok": True,
             "skipped": True,
             "reason": "未触发后端 outbound，mock evidence 检查跳过",
-            "summary": {"total": 0, "paths": {}, "subtypes": {}, "errors": 0, "warnings": 0},
+            "summary": {
+                "total": 0,
+                "paths": {},
+                "subtypes": {},
+                "errors": 0,
+                "warnings": 0,
+            },
             "failures": [],
             "warnings": [],
         }
@@ -269,8 +301,13 @@ def run_refactor_check(
             if case_name == "file_103":
                 result = _post_file_case(backend_base_url)
             else:
-                payload = build_plain_envelope(load_case(case_name))
+                case = load_case(case_name)
+                payload = build_plain_envelope(case)
                 result = _post_json(backend_base_url, "/api/ministry/receive", payload)
+                if "expected_business_result" in case:
+                    result["expected_business_result"] = case[
+                        "expected_business_result"
+                    ]
             result["case"] = case_name
             backend_calls.append(result)
 
@@ -295,7 +332,9 @@ def run_refactor_check(
         server.server_close()
 
     backend = _backend_report(backend_calls, mode)
-    evidence = _evidence_report(recorder.path, mode, should_have_evidence=bool(outbound_paths))
+    evidence = _evidence_report(
+        recorder.path, mode, should_have_evidence=bool(outbound_paths)
+    )
     combined_ok = bool(backend["ok"] and evidence["ok"])
 
     return {

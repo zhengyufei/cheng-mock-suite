@@ -1,6 +1,7 @@
 {
   "name": "test_data_307_tst_type_2",
-  "description": "interface 18 test data regression case, dataSubType=307 tstType=2",
+  "expected_business_result": 0,
+  "description": "interface 18 test data delivery case, dataSubType=307 tstType=2",
   "outer": {
     "orderID": "2-307-2026070500000000002",
     "orgCode": "MIIT",
@@ -19,14 +20,15 @@
     },
     "timeStamp": "20260705170200",
     "data": {
+      "numFiles": 1,
+      "numTgzs": 1,
       "fileInfoLst": [
         {
-          "fileID": "testdata307t2file001",
-          "fileName": "vpt-vulnerability.json",
-          "fileMD5": "md5-type2",
-          "svcType": 10,
+          "name": "td307-type-2-request.json",
           "dataType": "json",
-          "objectID": "2-307-2026070500000000002"
+          "objectID": "",
+          "svcType": 10,
+          "reserved": ""
         }
       ]
     },

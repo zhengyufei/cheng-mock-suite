@@ -1,6 +1,7 @@
 {
   "name": "test_data_307_tst_type_3",
-  "description": "interface 19 test data regression case, dataSubType=307 tstType=3",
+  "expected_business_result": -1,
+  "description": "interface 19 test data delivery case, dataSubType=307 tstType=3",
   "outer": {
     "orderID": "2-307-2026070500000000003",
     "orgCode": "MIIT",

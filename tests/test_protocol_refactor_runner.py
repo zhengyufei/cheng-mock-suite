@@ -9,7 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from mock_ministry.mocks.protocol_ministry_platform.runner import DEFAULT_SEND_CASES, run_refactor_check
+from mock_ministry.mocks.protocol_ministry_platform.runner import (
+    DEFAULT_SEND_CASES,
+    run_refactor_check,
+)
 
 
 class FakeBackendHandler(BaseHTTPRequestHandler):
@@ -32,7 +35,11 @@ class FakeBackendHandler(BaseHTTPRequestHandler):
         FakeBackendHandler.received_paths.append(self.path)
         length = int(self.headers.get("Content-Length", "0") or "0")
         self.rfile.read(length)
-        response_payload = FakeBackendHandler.body(self.path) if callable(FakeBackendHandler.body) else FakeBackendHandler.body
+        response_payload = (
+            FakeBackendHandler.body(self.path)
+            if callable(FakeBackendHandler.body)
+            else FakeBackendHandler.body
+        )
         response_body = (
             response_payload
             if isinstance(response_payload, str)
@@ -67,12 +74,14 @@ def _set_backend_response(
 
 def test_runner_sends_selected_fixture_to_running_backend(tmp_path) -> None:
     FakeBackendHandler.received_paths = []
-    _set_backend_response({
-        "orderID": "2-302-2026070500000000001",
-        "statusCode": 0,
-        "statusText": "fake backend accepted",
-        "rspMsgCnt": "cipher",
-    })
+    _set_backend_response(
+        {
+            "orderID": "2-302-2026070500000000001",
+            "statusCode": 0,
+            "statusText": "fake backend accepted",
+            "rspMsgCnt": "cipher",
+        }
+    )
     backend = ThreadingHTTPServer(("127.0.0.1", 0), FakeBackendHandler)
     thread = threading.Thread(target=backend.serve_forever, daemon=True)
     thread.start()
@@ -104,12 +113,14 @@ def test_runner_sends_selected_fixture_to_running_backend(tmp_path) -> None:
 
 def test_contract_runner_fails_on_http_200_business_error(tmp_path) -> None:
     FakeBackendHandler.received_paths = []
-    _set_backend_response({
-        "orderID": "2-302-2026070500000000001",
-        "statusCode": 133,
-        "statusText": "system exception",
-        "rspMsgCnt": "cipher",
-    })
+    _set_backend_response(
+        {
+            "orderID": "2-302-2026070500000000001",
+            "statusCode": 133,
+            "statusText": "system exception",
+            "rspMsgCnt": "cipher",
+        }
+    )
     backend = ThreadingHTTPServer(("127.0.0.1", 0), FakeBackendHandler)
     thread = threading.Thread(target=backend.serve_forever, daemon=True)
     thread.start()
@@ -138,12 +149,14 @@ def test_contract_runner_fails_on_http_200_business_error(tmp_path) -> None:
 
 def test_contract_runner_accepts_unknown_subtype_status_one(tmp_path) -> None:
     FakeBackendHandler.received_paths = []
-    _set_backend_response({
-        "orderID": "2-399-2026070500000000001",
-        "statusCode": 1,
-        "statusText": "id not found",
-        "rspMsgCnt": "cipher",
-    })
+    _set_backend_response(
+        {
+            "orderID": "2-399-2026070500000000001",
+            "statusCode": 1,
+            "statusText": "id not found",
+            "rspMsgCnt": "cipher",
+        }
+    )
     backend = ThreadingHTTPServer(("127.0.0.1", 0), FakeBackendHandler)
     thread = threading.Thread(target=backend.serve_forever, daemon=True)
     thread.start()
@@ -169,12 +182,14 @@ def test_contract_runner_accepts_unknown_subtype_status_one(tmp_path) -> None:
 
 def test_contract_runner_sends_negative_case_with_expected_status(tmp_path) -> None:
     FakeBackendHandler.received_paths = []
-    _set_backend_response({
-        "orderID": "2-101-2026070500000000001",
-        "statusCode": 6,
-        "statusText": "missing required param",
-        "rspMsgCnt": "cipher",
-    })
+    _set_backend_response(
+        {
+            "orderID": "2-101-2026070500000000001",
+            "statusCode": 6,
+            "statusText": "missing required param",
+            "rspMsgCnt": "cipher",
+        }
+    )
     backend = ThreadingHTTPServer(("127.0.0.1", 0), FakeBackendHandler)
     thread = threading.Thread(target=backend.serve_forever, daemon=True)
     thread.start()
@@ -204,12 +219,14 @@ def test_contract_runner_sends_negative_case_with_expected_status(tmp_path) -> N
 
 def test_contract_runner_rejects_307_negative_inner_business_success(tmp_path) -> None:
     FakeBackendHandler.received_paths = []
-    _set_backend_response({
-        "orderID": "2-307-2026070300000000001",
-        "statusCode": 0,
-        "statusText": "fake backend accepted",
-        "rspMsgCnt": json.dumps({"tstResParams": {"tstProcRslt": 0}}),
-    })
+    _set_backend_response(
+        {
+            "orderID": "2-307-2026070300000000001",
+            "statusCode": 0,
+            "statusText": "fake backend accepted",
+            "rspMsgCnt": json.dumps({"tstResParams": {"tstProcRslt": 0}}),
+        }
+    )
     backend = ThreadingHTTPServer(("127.0.0.1", 0), FakeBackendHandler)
     thread = threading.Thread(target=backend.serve_forever, daemon=True)
     thread.start()
@@ -234,36 +251,102 @@ def test_contract_runner_rejects_307_negative_inner_business_success(tmp_path) -
 
     assert result["report"]["ok"] is False
     assert backend_report["ok"] is False
-    assert result["backend_calls"][0]["expected_business_result"] == 1
-    assert "missing_test_data_tst_type returned tstProcRslt 0, expected 1" in backend_report["failures"]
+    assert result["backend_calls"][0]["expected_business_result"] == -1
+    assert (
+        "missing_test_data_tst_type returned tstProcRslt 0, expected -1"
+        in backend_report["failures"]
+    )
+
+
+def test_contract_runner_marks_encrypted_positive_307_result_for_persistence_verification(
+    tmp_path,
+) -> None:
+    FakeBackendHandler.received_paths = []
+    _set_backend_response(
+        {
+            "orderID": "2-307-2026070500000000003",
+            "statusCode": 0,
+            "statusText": "encrypted backend response",
+            "rspMsgCnt": "encrypted-ciphertext",
+        }
+    )
+    backend = ThreadingHTTPServer(("127.0.0.1", 0), FakeBackendHandler)
+    thread = threading.Thread(target=backend.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        host, port = backend.server_address
+        result = run_refactor_check(
+            backend_base_url=f"http://{host}:{port}",
+            record_dir=tmp_path / "mock-server",
+            mode="contract",
+            send_cases=["test_data_307_tst_type_3"],
+            negative_cases=[],
+            outbound_paths=[],
+            mock_port=0,
+        )
+    finally:
+        backend.shutdown()
+        thread.join(timeout=5)
+        backend.server_close()
+
+    backend_report = result["report"]["sections"]["backend"]
+
+    assert backend_report["ok"] is True
+    assert backend_report["unverified_business_results"] == 1
+    assert backend_report["failures"] == []
+    assert backend_report["warnings"] == [
+        "test_data_307_tst_type_3 returned encrypted rspMsgCnt; "
+        "verify tstProcRslt=-1 through the acceptance persistence probe"
+    ]
 
 
 @pytest.mark.parametrize(
     "body, headers, failure",
     [
         (
-            {"orderID": "2-302-2026070500000000001", "statusCode": 0, "statusText": "ok"},
+            {
+                "orderID": "2-302-2026070500000000001",
+                "statusCode": 0,
+                "statusText": "ok",
+            },
             None,
             "policy_302 returned missing rspMsgCnt",
         ),
         (
-            {"orderID": "2-302-2026070500000000001", "statusCode": 0, "rspMsgCnt": "cipher"},
+            {
+                "orderID": "2-302-2026070500000000001",
+                "statusCode": 0,
+                "rspMsgCnt": "cipher",
+            },
             None,
             "policy_302 returned missing or invalid statusText",
         ),
         (
-            {"orderID": "wrong", "statusCode": 0, "statusText": "ok", "rspMsgCnt": "cipher"},
+            {
+                "orderID": "wrong",
+                "statusCode": 0,
+                "statusText": "ok",
+                "rspMsgCnt": "cipher",
+            },
             None,
             "policy_302 returned orderID 'wrong', expected '2-302-2026070500000000001'",
         ),
         (
-            {"orderID": "2-302-2026070500000000001", "statusCode": 0, "statusText": "ok", "rspMsgCnt": "cipher"},
+            {
+                "orderID": "2-302-2026070500000000001",
+                "statusCode": 0,
+                "statusText": "ok",
+                "rspMsgCnt": "cipher",
+            },
             {"X-Enc-Key": "key", "X-Enc-Key-G": "group-key", "X-Enc-Nonce": "nonce"},
             "policy_302 missing response header X-Enc-Auth-Tag",
         ),
     ],
 )
-def test_contract_runner_rejects_incomplete_response_envelope(tmp_path, body, headers, failure) -> None:
+def test_contract_runner_rejects_incomplete_response_envelope(
+    tmp_path, body, headers, failure
+) -> None:
     FakeBackendHandler.received_paths = []
     _set_backend_response(body, headers=headers)
     backend = ThreadingHTTPServer(("127.0.0.1", 0), FakeBackendHandler)
@@ -294,12 +377,14 @@ def test_contract_runner_rejects_incomplete_response_envelope(tmp_path, body, he
 
 def test_contract_runner_rejects_unknown_subtype_system_exception(tmp_path) -> None:
     FakeBackendHandler.received_paths = []
-    _set_backend_response({
-        "orderID": "2-399-2026070500000000001",
-        "statusCode": 133,
-        "statusText": "system exception",
-        "rspMsgCnt": "cipher",
-    })
+    _set_backend_response(
+        {
+            "orderID": "2-399-2026070500000000001",
+            "statusCode": 133,
+            "statusText": "system exception",
+            "rspMsgCnt": "cipher",
+        }
+    )
     backend = ThreadingHTTPServer(("127.0.0.1", 0), FakeBackendHandler)
     thread = threading.Thread(target=backend.serve_forever, daemon=True)
     thread.start()
@@ -323,7 +408,10 @@ def test_contract_runner_rejects_unknown_subtype_system_exception(tmp_path) -> N
 
     assert result["report"]["ok"] is False
     assert backend_report["ok"] is False
-    assert "unknown_subtype_399 returned business statusCode 133" in backend_report["failures"]
+    assert (
+        "unknown_subtype_399 returned business statusCode 133"
+        in backend_report["failures"]
+    )
 
 
 @pytest.mark.parametrize(
@@ -331,14 +419,28 @@ def test_contract_runner_rejects_unknown_subtype_system_exception(tmp_path) -> N
     [
         ({}, "policy_302 returned missing business statusCode"),
         ("not-json", "policy_302 returned invalid JSON body"),
-        ({"statusCode": "abc"}, "policy_302 returned non-integer business statusCode abc"),
+        (
+            {"statusCode": "abc"},
+            "policy_302 returned non-integer business statusCode abc",
+        ),
         ({"statusCode": "0"}, "policy_302 returned non-integer business statusCode 0"),
-        ({"statusCode": 0.0}, "policy_302 returned non-integer business statusCode 0.0"),
-        ({"statusCode": 0.9}, "policy_302 returned non-integer business statusCode 0.9"),
-        ({"statusCode": True}, "policy_302 returned non-integer business statusCode True"),
+        (
+            {"statusCode": 0.0},
+            "policy_302 returned non-integer business statusCode 0.0",
+        ),
+        (
+            {"statusCode": 0.9},
+            "policy_302 returned non-integer business statusCode 0.9",
+        ),
+        (
+            {"statusCode": True},
+            "policy_302 returned non-integer business statusCode True",
+        ),
     ],
 )
-def test_contract_runner_rejects_missing_or_invalid_business_status(tmp_path, backend_body, failure) -> None:
+def test_contract_runner_rejects_missing_or_invalid_business_status(
+    tmp_path, backend_body, failure
+) -> None:
     FakeBackendHandler.received_paths = []
     FakeBackendHandler.body = backend_body
     backend = ThreadingHTTPServer(("127.0.0.1", 0), FakeBackendHandler)
@@ -369,7 +471,11 @@ def test_contract_runner_rejects_missing_or_invalid_business_status(tmp_path, ba
 
 def test_runner_cli_does_not_duplicate_explicit_send_case(tmp_path) -> None:
     FakeBackendHandler.received_paths = []
-    FakeBackendHandler.body = {"statusCode": 0, "statusText": "fake backend accepted", "rspMsgCnt": ""}
+    FakeBackendHandler.body = {
+        "statusCode": 0,
+        "statusText": "fake backend accepted",
+        "rspMsgCnt": "",
+    }
     backend = ThreadingHTTPServer(("127.0.0.1", 0), FakeBackendHandler)
     thread = threading.Thread(target=backend.serve_forever, daemon=True)
     thread.start()
@@ -406,8 +512,12 @@ def test_runner_cli_does_not_duplicate_explicit_send_case(tmp_path) -> None:
 
 def test_runner_default_send_cases_match_manifest() -> None:
     manifest = json.loads(
-        (Path(__file__).resolve().parents[1] / "fixtures" / "protocol_ministry_platform" / "manifest.json")
-        .read_text(encoding="utf-8")
+        (
+            Path(__file__).resolve().parents[1]
+            / "fixtures"
+            / "protocol_ministry_platform"
+            / "manifest.json"
+        ).read_text(encoding="utf-8")
     )
 
     assert DEFAULT_SEND_CASES == manifest["send_to_backend"]["default_send_cases"]
@@ -464,7 +574,10 @@ def test_runner_cli_default_suite_uses_manifest_representative_cases(tmp_path) -
         "policy_302",
         "prod_vul_workorder_5_request",
     ]
-    assert FakeBackendHandler.received_paths == ["/api/ministry/receive", "/api/ministry/receive"]
+    assert FakeBackendHandler.received_paths == [
+        "/api/ministry/receive",
+        "/api/ministry/receive",
+    ]
 
 
 def test_contract_runner_rejects_file_case_missing_file_auth_tag(tmp_path) -> None:
@@ -506,17 +619,22 @@ def test_contract_runner_rejects_file_case_missing_file_auth_tag(tmp_path) -> No
 
     assert result["report"]["ok"] is False
     assert backend_report["ok"] is False
-    assert "file_103 missing response header X-Enc-Auth-Tag-File" in backend_report["failures"]
+    assert (
+        "file_103 missing response header X-Enc-Auth-Tag-File"
+        in backend_report["failures"]
+    )
 
 
 def test_contract_runner_sends_file_case_to_ministry_file_endpoint(tmp_path) -> None:
     FakeBackendHandler.received_paths = []
-    _set_backend_response({
-        "orderID": "2-103-2026070300000000001",
-        "statusCode": 0,
-        "statusText": "fake backend accepted",
-        "rspMsgCnt": "cipher",
-    })
+    _set_backend_response(
+        {
+            "orderID": "2-103-2026070300000000001",
+            "statusCode": 0,
+            "statusText": "fake backend accepted",
+            "rspMsgCnt": "cipher",
+        }
+    )
     backend = ThreadingHTTPServer(("127.0.0.1", 0), FakeBackendHandler)
     thread = threading.Thread(target=backend.serve_forever, daemon=True)
     thread.start()

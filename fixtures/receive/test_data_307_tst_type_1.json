@@ -1,6 +1,7 @@
 {
   "name": "test_data_307_tst_type_1",
-  "description": "测试数据 dataSubType=307 tstType=1 样例",
+  "expected_business_result": 0,
+  "description": "interface 17 test data delivery case, dataSubType=307 tstType=1",
   "outer": {
     "orderID": "2-307-2026070300000000001",
     "orgCode": "MIIT",
@@ -19,11 +20,15 @@
     },
     "timeStamp": "20260703100100",
     "data": {
+      "numFiles": 1,
+      "numTgzs": 1,
       "fileInfoLst": [
         {
-          "fileID": "testdata307t1file001",
-          "fileName": "warning-assets-type1.json",
-          "fileMD5": "md5-type1"
+          "name": "td307-type-1-request.json",
+          "dataType": "json",
+          "objectID": "",
+          "svcType": 9,
+          "reserved": ""
         }
       ]
     },

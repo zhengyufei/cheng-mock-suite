@@ -27,6 +27,7 @@ REQUIRED_CASES = {
     "unknown_subtype_399",
 }
 
+
 def test_list_cases_includes_required_cases() -> None:
     assert REQUIRED_CASES <= set(list_cases())
 
@@ -133,9 +134,15 @@ def test_build_negative_case_returns_mutated_fixture_and_expected_status() -> No
 
 
 def test_build_test_data_307_negative_cases() -> None:
-    missing_case, missing_expected_status = build_negative_case("missing_test_data_tst_type")
-    invalid_case, invalid_expected_status = build_negative_case("invalid_test_data_tst_type")
-    file_case, file_expected_status = build_negative_case("missing_test_data_file_metadata")
+    missing_case, missing_expected_status = build_negative_case(
+        "missing_test_data_tst_type"
+    )
+    invalid_case, invalid_expected_status = build_negative_case(
+        "invalid_test_data_tst_type"
+    )
+    file_case, file_expected_status = build_negative_case(
+        "missing_test_data_file_metadata"
+    )
 
     missing_inner = json.loads(build_plain_envelope(missing_case)["reqMsgCnt"])
     invalid_inner = json.loads(build_plain_envelope(invalid_case)["reqMsgCnt"])
@@ -144,9 +151,20 @@ def test_build_test_data_307_negative_cases() -> None:
     assert missing_expected_status == 0
     assert invalid_expected_status == 0
     assert file_expected_status == 0
-    assert NEGATIVE_MUTATIONS["missing_test_data_tst_type"]["expected_business_result"] == 1
-    assert NEGATIVE_MUTATIONS["invalid_test_data_tst_type"]["expected_business_result"] == 1
-    assert NEGATIVE_MUTATIONS["missing_test_data_file_metadata"]["expected_business_result"] == 1
+    assert (
+        NEGATIVE_MUTATIONS["missing_test_data_tst_type"]["expected_business_result"]
+        == -1
+    )
+    assert (
+        NEGATIVE_MUTATIONS["invalid_test_data_tst_type"]["expected_business_result"]
+        == -1
+    )
+    assert (
+        NEGATIVE_MUTATIONS["missing_test_data_file_metadata"][
+            "expected_business_result"
+        ]
+        == -1
+    )
     assert missing_inner["dataSubType"] == 307
     assert "tstType" not in missing_inner["tstReqParams"]
     assert invalid_inner["tstReqParams"]["tstType"] == "bad"
