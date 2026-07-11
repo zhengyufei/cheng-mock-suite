@@ -43,9 +43,18 @@ def test_protocol_platform_manifest_lists_feature_interface_coverage() -> None:
         "31",
         "32",
         "33",
+        "307",
         "399",
     }
     assert expected_cases <= set(data["send_to_backend"]["fixture_cases"])
+    assert set(data["send_to_backend"]["fixture_cases"]["307"].values()) == {
+        "test_data_307_tst_type_1",
+        "test_data_307_tst_type_2",
+        "test_data_307_tst_type_3",
+        "test_data_307_tst_type_4",
+        "test_data_307_tst_type_5",
+        "test_data_307_tst_type_6",
+    }
     assert data["send_to_backend"]["fixture_cases"]["file_103"] == "file_103"
     assert data["send_to_backend"]["fixture_cases"]["33"] == "file_103"
     assert set(data["send_to_backend"]["delivery_send_cases"]) == {
@@ -54,6 +63,12 @@ def test_protocol_platform_manifest_lists_feature_interface_coverage() -> None:
         "warning_task_7_request",
         "warning_task_8_callback",
         "policy_302",
+        "test_data_307_tst_type_1",
+        "test_data_307_tst_type_2",
+        "test_data_307_tst_type_3",
+        "test_data_307_tst_type_4",
+        "test_data_307_tst_type_5",
+        "test_data_307_tst_type_6",
         "device_cmd_309",
         "platform_event_303",
         "platform_status_304",
@@ -62,12 +77,6 @@ def test_protocol_platform_manifest_lists_feature_interface_coverage() -> None:
     }
     assert set(data["send_to_backend"]["regression_send_cases"]) == {
         "policy_302_interface_16",
-        "test_data_307_tst_type_1",
-        "test_data_307_tst_type_2",
-        "test_data_307_tst_type_3",
-        "test_data_307_tst_type_4",
-        "test_data_307_tst_type_5",
-        "test_data_307_tst_type_6",
         "device_register_308",
         "command_stat_201",
         "tas_stat_202",

@@ -69,7 +69,7 @@ def test_refactor_regression_fixtures_cover_shared_route_family() -> None:
 
 def test_test_data_307_fixtures_cover_tst_type_1_to_6() -> None:
     """接口17-22共用 dataSubType=307，通过 tstType 区分六类测试数据。"""
-    tst_types = set()
+    seen = {}
     for name in REQUIRED_CASES:
         if not name.startswith("test_data_307_tst_type_"):
             continue
@@ -77,13 +77,35 @@ def test_test_data_307_fixtures_cover_tst_type_1_to_6() -> None:
         inner = data["inner"]
         assert inner["dataType"] == 2
         assert inner["dataSubType"] == 307
-        tst_types.add(inner["tstReqParams"]["tstType"])
+        tst_type = inner["tstReqParams"]["tstType"]
+        seen[tst_type] = inner
 
-    assert tst_types == {1, 2, 3, 4, 5, 6}
+    assert set(seen) == {1, 2, 3, 4, 5, 6}
+    for tst_type, expected_result in {1: 0, 2: 0, 3: -1, 4: 0, 5: -1, 6: -1}.items():
+        data = json.loads(
+            (FIXTURE_DIR / f"test_data_307_tst_type_{tst_type}.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert data["expected_business_result"] == expected_result
+    expected_svc_types = {1: 9, 2: 10, 4: 5}
+    for tst_type in (1, 2, 4):
+        assert seen[tst_type]["data"]["numFiles"] == 1
+        assert seen[tst_type]["data"]["numTgzs"] == 1
+        file_info = seen[tst_type]["data"]["fileInfoLst"][0]
+        assert file_info == {
+            "name": f"td307-type-{tst_type}-request.json",
+            "dataType": "json",
+            "objectID": "",
+            "svcType": expected_svc_types[tst_type],
+            "reserved": "",
+        }
 
 
 def test_platform_event_fixture_uses_contract_params_object() -> None:
-    data = json.loads((FIXTURE_DIR / "platform_event_303.json").read_text(encoding="utf-8"))
+    data = json.loads(
+        (FIXTURE_DIR / "platform_event_303.json").read_text(encoding="utf-8")
+    )
     params = data["inner"].get("eventInfoReqParams")
 
     assert isinstance(params, dict)

@@ -1,6 +1,7 @@
 {
   "name": "test_data_307_tst_type_6",
-  "description": "interface 22 test data regression case, dataSubType=307 tstType=6",
+  "expected_business_result": -1,
+  "description": "interface 22 test data delivery case, dataSubType=307 tstType=6",
   "outer": {
     "orderID": "2-307-2026070500000000006",
     "orgCode": "MIIT",
@@ -20,17 +21,6 @@
       "opCode": 1
     },
     "timeStamp": "20260705170600",
-    "data": {
-      "fileInfoLst": [
-        {
-          "fileID": "testdata307t6file001",
-          "fileName": "combined-log-and-vulnerability.json",
-          "svcType": 12,
-          "dataType": "json",
-          "objectID": "2-307-2026070500000000006"
-        }
-      ]
-    },
     "sign": ""
   }
 }

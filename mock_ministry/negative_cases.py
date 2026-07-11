@@ -25,7 +25,9 @@ NEGATIVE_MUTATIONS: dict[str, dict[str, Any]] = {
     },
     "invalid_product_procMethod": {
         "case": "prod_vul_workorder_5_request",
-        "mutate": lambda inner: inner["vulTktReqParams"].__setitem__("procMethod", True),
+        "mutate": lambda inner: inner["vulTktReqParams"].__setitem__(
+            "procMethod", True
+        ),
         "expected_status_code": 7,
     },
     "missing_vulTktRspParams": {
@@ -123,17 +125,23 @@ NEGATIVE_MUTATIONS: dict[str, dict[str, Any]] = {
     },
     "invalid_log_hash": {
         "case": "platform_log_305",
-        "mutate": lambda inner: inner["logInfoReqParams"]["logInfo"][0].__setitem__("hash", True),
+        "mutate": lambda inner: inner["logInfoReqParams"]["logInfo"][0].__setitem__(
+            "hash", True
+        ),
         "expected_status_code": 7,
     },
     "invalid_log_id": {
         "case": "platform_log_305",
-        "mutate": lambda inner: inner["logInfoReqParams"]["logInfo"][0].__setitem__("logID", True),
+        "mutate": lambda inner: inner["logInfoReqParams"]["logInfo"][0].__setitem__(
+            "logID", True
+        ),
         "expected_status_code": 7,
     },
     "invalid_log_devHash": {
         "case": "platform_log_305",
-        "mutate": lambda inner: inner["logInfoReqParams"]["logInfo"][0].__setitem__("devHash", 123),
+        "mutate": lambda inner: inner["logInfoReqParams"]["logInfo"][0].__setitem__(
+            "devHash", 123
+        ),
         "expected_status_code": 7,
     },
     "empty_fileInfoLst": {
@@ -167,7 +175,9 @@ NEGATIVE_MUTATIONS: dict[str, dict[str, Any]] = {
     },
     "non_object_fileInfo": {
         "case": "platform_file_306",
-        "mutate": lambda inner: inner["data"].__setitem__("fileInfoLst", ["not-an-object"]),
+        "mutate": lambda inner: inner["data"].__setitem__(
+            "fileInfoLst", ["not-an-object"]
+        ),
         "expected_status_code": 7,
     },
     "duplicate_fileMD5": {
@@ -205,6 +215,33 @@ NEGATIVE_MUTATIONS: dict[str, dict[str, Any]] = {
         ),
         "expected_status_code": 7,
     },
+    "missing_test_data_tst_type": {
+        "case": "test_data_307_tst_type_1",
+        "mutate": lambda inner: (
+            inner.pop("tstType", None),
+            inner["tstReqParams"].pop("tstType", None),
+        ),
+        "expected_status_code": 0,
+        "expected_business_result": -1,
+    },
+    "invalid_test_data_tst_type": {
+        "case": "test_data_307_tst_type_1",
+        "mutate": lambda inner: (
+            inner.__setitem__("tstType", "bad"),
+            inner["tstReqParams"].__setitem__("tstType", "bad"),
+        ),
+        "expected_status_code": 0,
+        "expected_business_result": -1,
+    },
+    "missing_test_data_file_metadata": {
+        "case": "test_data_307_tst_type_1",
+        "mutate": lambda inner: inner["data"].__setitem__(
+            "fileInfoLst",
+            [{"fileID": "td307-missing-metadata"}],
+        ),
+        "expected_status_code": 0,
+        "expected_business_result": -1,
+    },
     "missing_event_type": {
         "case": "platform_event_303",
         "mutate": lambda inner: inner["eventInfoReqParams"].pop("eventType"),
@@ -212,12 +249,16 @@ NEGATIVE_MUTATIONS: dict[str, dict[str, Any]] = {
     },
     "invalid_event_type": {
         "case": "platform_event_303",
-        "mutate": lambda inner: inner["eventInfoReqParams"].__setitem__("eventType", "not-a-number"),
+        "mutate": lambda inner: inner["eventInfoReqParams"].__setitem__(
+            "eventType", "not-a-number"
+        ),
         "expected_status_code": 7,
     },
     "coerced_event_type": {
         "case": "platform_event_303",
-        "mutate": lambda inner: inner["eventInfoReqParams"].__setitem__("eventType", "1001"),
+        "mutate": lambda inner: inner["eventInfoReqParams"].__setitem__(
+            "eventType", "1001"
+        ),
         "expected_status_code": 7,
     },
     "missing_event_source": {
@@ -227,7 +268,9 @@ NEGATIVE_MUTATIONS: dict[str, dict[str, Any]] = {
     },
     "invalid_event_id": {
         "case": "platform_event_303",
-        "mutate": lambda inner: inner["eventInfoReqParams"].__setitem__("eventID", True),
+        "mutate": lambda inner: inner["eventInfoReqParams"].__setitem__(
+            "eventID", True
+        ),
         "expected_status_code": 7,
     },
     "missing_event_device_hash": {
@@ -253,10 +296,13 @@ def build_negative_case(name: str) -> tuple[dict[str, Any], int]:
     outer = dict(fixture["outer"])
     if "outer" in mutation:
         outer.update(mutation["outer"])
-    return {
+    case = {
         **fixture,
         "name": name,
         "outer": outer,
         "inner": mutated_inner,
         "base_case": mutation["case"],
-    }, int(mutation["expected_status_code"])
+    }
+    if "expected_business_result" in mutation:
+        case["expected_business_result"] = int(mutation["expected_business_result"])
+    return case, int(mutation["expected_status_code"])
