@@ -57,6 +57,52 @@ def test_receive_inspector_extracts_data_subtype_from_plain_inner_message() -> N
 
 
 @pytest.mark.parametrize(
+    ("change", "fragment"),
+    [
+        (lambda body: body.update(extra="forbidden"), "unexpected outer keys"),
+        (lambda body: body.update(ctxCode="0"), "ctxCode must be int"),
+        (lambda body: body.update(orderID="2-302-short"), "19 digits"),
+    ],
+)
+def test_receive_inspector_requires_exact_typed_outer_envelope(change, fragment: str) -> None:
+    body = {
+        "orderID": "2-302-2026070300000000001",
+        "orgCode": "MIIT",
+        "ispCode": "CMCC",
+        "ctxCode": 0,
+        "reqMsgCnt": json.dumps({"dataType": 2, "dataSubType": 302}),
+    }
+    change(body)
+
+    observation = inspect_receive_body(
+        raw_body=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert not observation.is_valid
+    assert any(fragment in error for error in observation.errors)
+
+
+def test_receive_inspector_uses_runner_specific_expected_org_code(monkeypatch) -> None:
+    monkeypatch.setenv("CHENG_MOCK_EXPECTED_ORG_CODE", "654321")
+    body = {
+        "orderID": "2-302-2026070300000000001",
+        "orgCode": "150000",
+        "ispCode": "CM",
+        "ctxCode": 0,
+        "reqMsgCnt": json.dumps({"dataType": 2, "dataSubType": 302}),
+    }
+
+    observation = inspect_receive_body(
+        raw_body=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert not observation.is_valid
+    assert any("orgCode must match runner test code 654321" in error for error in observation.errors)
+
+
+@pytest.mark.parametrize(
     ("order_id", "inner", "error_fragment"),
     [
         ("2-303-2026070300000000001", {"dataType": True, "dataSubType": 303}, "invalid route field"),
@@ -84,7 +130,7 @@ def test_receive_inspector_rejects_coerced_or_mismatched_inner_route(order_id, i
     assert any(error_fragment in error for error in observation.errors)
 
 
-def test_receive_inspector_accepts_encrypted_response_with_orderid_fallback() -> None:
+def test_receive_inspector_rejects_opaque_content_when_it_cannot_decrypt() -> None:
     body = {
         "orderID": "2-308-2026070300000000001",
         "statusCode": 0,
@@ -103,14 +149,31 @@ def test_receive_inspector_accepts_encrypted_response_with_orderid_fallback() ->
         },
     )
 
-    assert observation.is_valid
+    assert not observation.is_valid
     assert observation.content_field == "rspMsgCnt"
     assert observation.order_type == 2
     assert observation.sub_type == 308
     assert observation.message_family == "order"
     assert observation.encrypted_or_opaque
+    assert any("decrypt" in error.lower() or "opaque" in error.lower() for error in observation.errors)
     assert observation.header_report["X-Enc-Key"] == "present"
     assert observation.header_report["X-Enc-Key-G"] == "present"
+
+
+def test_strict_crypto_server_fails_fast_when_test_keys_are_missing(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("TEST_MODE", "false")
+    for name in (
+        "CHENG_MOCK_MINISTRY_PRIVATE_KEY",
+        "CHENG_MOCK_MINISTRY_PRIVATE_KEY_FILE",
+        "CHENG_MOCK_PROVINCE_PUBLIC_KEY",
+        "CHENG_MOCK_PROVINCE_PUBLIC_KEY_FILE",
+        "CHENG_MOCK_GROUP_PUBLIC_KEY",
+        "CHENG_MOCK_GROUP_PUBLIC_KEY_FILE",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    with pytest.raises(RuntimeError, match="key"):
+        create_server(host="127.0.0.1", port=0, recorder=FileRecorder(tmp_path, "strict"))
 
 
 def test_unknown_subtype_returns_protocol_level_error_body() -> None:
@@ -141,7 +204,8 @@ def test_file_inspector_covers_protocol_and_current_legacy_file_paths() -> None:
             raw_body=b"--mock\r\ncontent\r\n--mock--\r\n",
         )
 
-        assert observation.is_valid
+        assert not observation.is_valid
+        assert "missing multipart fields" in "; ".join(observation.errors)
         assert observation.path == path
         assert observation.endpoint_role in {"platform_file", "legacy_platform_file"}
 

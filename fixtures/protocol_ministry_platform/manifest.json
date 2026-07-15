@@ -13,6 +13,12 @@
       "308": "安全设备注册",
       "104": "产品漏洞上传",
       "105": "口令字典上传",
+      "21": "产品漏洞排查验证工单回传",
+      "22": "产品漏洞修复验证工单回传",
+      "41": "系统漏洞排查工单回传",
+      "42": "系统漏洞验证工单回传",
+      "43": "系统漏洞修复工单回传",
+      "44": "系统漏洞核验工单回传",
       "201": "指令统计上报",
       "202": "台账统计上报",
       "203": "系统漏洞常态化上报"
@@ -40,8 +46,6 @@
       "23": "device_register_308",
       "24": "device_cmd_309",
       "25": "command_stat_201",
-      "26": "tas_stat_202",
-      "27": "sys_vul_stat_203",
       "28": "platform_register_301",
       "29": "platform_event_303",
       "30": "platform_status_304",
@@ -81,8 +85,6 @@
       "test_data_307_tst_type_6",
       "device_register_308",
       "command_stat_201",
-      "tas_stat_202",
-      "sys_vul_stat_203",
       "platform_register_301",
       "file_103",
       "unknown_subtype_399"
@@ -90,7 +92,31 @@
     "default_send_cases": [
       "policy_302",
       "prod_vul_workorder_5_request"
-    ]
+    ],
+    "generated_fixture_cases": {
+      "3": "build_work_order_request(31..34)",
+      "17": "build_additional_fixture(17)",
+      "18": "build_additional_fixture(18)",
+      "19": "build_additional_fixture(19)",
+      "21": "build_additional_fixture(21)",
+      "22": "build_additional_fixture(22)"
+    }
+  },
+  "additional_interfaces": {
+    "response_subtype_mapping": {
+      "31": 41,
+      "32": 42,
+      "33": 43,
+      "34": 44
+    },
+    "province_to_ministry": {
+      "interfaces": [4, 11, 12, 26, 27],
+      "subtypes": [41, 42, 43, 44, 104, 105, 202, 203]
+    },
+    "ministry_to_province": {
+      "interfaces": [3, 17, 18, 19, 21, 22],
+      "subtypes": [31, 32, 33, 34, 307]
+    }
   },
   "verification_modes": {
     "observe": {
@@ -100,10 +126,16 @@
     "contract": {
       "purpose": "以原始协议和产品要求为标准答案，协议偏差作为 failure",
       "expected_exit_code_when_warnings_only": 1
+    },
+    "strict_local_crypto": {
+      "purpose": "本地严格线使用真实 SM2/SM4 加解密、签名校验和文件密文解包。",
+      "sm2_sm4": "real",
+      "verification_nature": "local_mock_only",
+      "production_ministry_joint_test": false
     }
   },
   "notes": [
-    "第一阶段不做真实 SM2/SM4 解密，只识别 envelope、orderID、subtype 和 X-Enc-* 头是否存在。",
+    "本地严格线使用真实 SM2/SM4，但结果仅代表本地 mock 自证，不代表生产部侧联调。",
     "接口33文件通道用 file_103 runner case 表示，它发送到 /api/ministry/file。",
     "当前 feature 交付接口和统一入口重构回归接口分开记录，避免把回归覆盖误写成完整业务闭环。"
   ]

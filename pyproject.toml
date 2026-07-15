@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Local ministry-side mock fixtures, receiver, recorder, and sender tools."
 requires-python = ">=3.11"
 dependencies = [
+    "cryptography",
+    "gmssl",
     "pytest",
     "pyyaml",
     "requests",

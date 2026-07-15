@@ -9,8 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from mock_ministry.recorder import FileRecorder
-from mock_ministry.server import create_server
+from mock_ministry.recorder import FileRecorder  # noqa: E402
+from mock_ministry.server import create_server  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -19,7 +19,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=18080)
     parser.add_argument("--record-dir", default="reports/mock-server")
-    parser.add_argument("--scenario", choices=["success", "reject"], default="success")
+    parser.add_argument("--scenario", choices=("success",), default="success")
     return parser.parse_args()
 
 

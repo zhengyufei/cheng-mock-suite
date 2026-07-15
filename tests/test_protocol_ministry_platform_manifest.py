@@ -35,8 +35,6 @@ def test_protocol_platform_manifest_lists_feature_interface_coverage() -> None:
         "23",
         "24",
         "25",
-        "26",
-        "27",
         "28",
         "29",
         "30",
@@ -70,8 +68,6 @@ def test_protocol_platform_manifest_lists_feature_interface_coverage() -> None:
         "test_data_307_tst_type_6",
         "device_register_308",
         "command_stat_201",
-        "tas_stat_202",
-        "sys_vul_stat_203",
         "platform_register_301",
         "file_103",
         "unknown_subtype_399",
@@ -80,5 +76,16 @@ def test_protocol_platform_manifest_lists_feature_interface_coverage() -> None:
         "policy_302",
         "prod_vul_workorder_5_request",
     ]
+    assert data["additional_interfaces"]["response_subtype_mapping"] == {
+        "31": 41,
+        "32": 42,
+        "33": 43,
+        "34": 44,
+    }
+    assert data["additional_interfaces"]["province_to_ministry"]["interfaces"] == [4, 11, 12, 26, 27]
     assert data["verification_modes"]["observe"]["expected_exit_code_when_warnings_only"] == 0
     assert data["verification_modes"]["contract"]["expected_exit_code_when_warnings_only"] == 1
+    strict_line = data["verification_modes"]["strict_local_crypto"]
+    assert strict_line["sm2_sm4"] == "real"
+    assert strict_line["verification_nature"] == "local_mock_only"
+    assert strict_line["production_ministry_joint_test"] is False
