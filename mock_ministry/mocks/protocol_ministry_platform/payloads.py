@@ -110,9 +110,19 @@ SYSTEM_VULNERABILITY_KEYS = {
 def _is_safe_archive_file_name(value: Any) -> bool:
     if not isinstance(value, str) or not value or value in {".", ".."}:
         return False
-    if any(character in value for character in ("/", "\\", ":")):
+    if any(character in value for character in '<>:"/\\|?*'):
         return False
-    return not any(ord(character) < 32 or ord(character) == 127 for character in value)
+    if any(ord(character) < 32 or ord(character) == 127 for character in value):
+        return False
+    if value.endswith((" ", ".")):
+        return False
+    reserved_stem = value.split(".", 1)[0].rstrip(" .").casefold()
+    reserved = (
+        {"con", "prn", "aux", "nul"}
+        | {f"com{index}" for index in range(1, 10)}
+        | {f"lpt{index}" for index in range(1, 10)}
+    )
+    return reserved_stem not in reserved
 SYSTEM_VULNERABILITY_REQUIRED_KEYS = {
     "vulInfoID",
     "srcMethod",
@@ -1280,7 +1290,18 @@ def _validate_shared_work_orders(interface_no: int, payload: dict[str, Any], err
             "srcTktRole", "srcTktProcer", "srcTktProcerDept", "dstTktRole", "prcVulNum",
             "dstVulStat", "sucVulNum", "tktResult", "tktInfo",
         }
-        _exact_keys(response, response_keys, "payload.vulTktRspParams", errors)
+        if isinstance(response, dict):
+            required_response_keys = response_keys - {"tktInfo"}
+            missing = required_response_keys - set(response)
+            extra = set(response) - response_keys
+            if missing:
+                errors.append(
+                    f"payload.vulTktRspParams missing keys: {sorted(missing)}"
+                )
+            if extra:
+                errors.append(
+                    f"payload.vulTktRspParams unexpected keys: {sorted(extra)}"
+                )
         _typed_many(
             response,
             {"srcTktRole", "dstTktRole", "prcVulNum", "tktResult"},
@@ -1290,12 +1311,39 @@ def _validate_shared_work_orders(interface_no: int, payload: dict[str, Any], err
         )
         _typed_many(
             response,
-            {"srcTktProcer", "srcTktProcerDept", "tktInfo"},
+            {"srcTktProcer", "srcTktProcerDept"},
             str,
             "payload.vulTktRspParams",
             errors,
         )
         if isinstance(response, dict):
+            if "tktInfo" in response:
+                _typed(
+                    response,
+                    "tktInfo",
+                    str,
+                    "payload.vulTktRspParams",
+                    errors,
+                )
+            for field in ("srcTktProcer", "srcTktProcerDept"):
+                value = response.get(field)
+                if isinstance(value, str) and not value.strip():
+                    errors.append(f"payload.vulTktRspParams.{field} must not be blank")
+                elif isinstance(value, str) and len(value) > 255:
+                    errors.append(
+                        f"payload.vulTktRspParams.{field} must not exceed 255 characters"
+                    )
+            ticket_info = response.get("tktInfo")
+            if isinstance(ticket_info, str) and len(ticket_info) > 2048:
+                errors.append(
+                    "payload.vulTktRspParams.tktInfo must not exceed 2048 characters"
+                )
+            for field in ("srcTktRole", "dstTktRole"):
+                value = response.get(field)
+                if type(value) is int and not 0 <= value <= 10:
+                    errors.append(
+                        f"payload.vulTktRspParams.{field} must be from 0 to 10"
+                    )
             destination_statuses = response.get("dstVulStat")
             success_counts = response.get("sucVulNum")
             _fixed_int_list(
@@ -1318,9 +1366,9 @@ def _validate_shared_work_orders(interface_no: int, payload: dict[str, Any], err
                         )
             if isinstance(success_counts, list):
                 for index, value in enumerate(success_counts):
-                    if type(value) is int and value < -1:
+                    if type(value) is int and not -1 <= value <= 9999:
                         errors.append(
-                            f"payload.vulTktRspParams.sucVulNum[{index}] must be -1 or non-negative"
+                            f"payload.vulTktRspParams.sucVulNum[{index}] must be from -1 to 9999"
                         )
             if type(response.get("prcVulNum")) is int and not 0 <= response["prcVulNum"] <= 9999:
                 errors.append("payload.vulTktRspParams.prcVulNum must be from 0 to 9999")
@@ -1336,7 +1384,11 @@ def _validate_shared_work_orders(interface_no: int, payload: dict[str, Any], err
             else:
                 for index, item in enumerate(rows):
                     item_path = f"payload.vulIdLst.idLst[{index}]"
-                    if not isinstance(item, str) or not item or len(item) > 255:
+                    if (
+                        not isinstance(item, str)
+                        or not item.strip()
+                        or len(item) > 255
+                    ):
                         errors.append(f"{item_path} must be string with 1 to 255 characters")
             if (
                 isinstance(rows, list)
@@ -1344,6 +1396,8 @@ def _validate_shared_work_orders(interface_no: int, payload: dict[str, Any], err
                 and ids["vulNum"] != len(rows)
             ):
                 errors.append("payload.vulIdLst.vulNum must equal idLst length")
+            if type(ids.get("vulNum")) is int and not 0 <= ids["vulNum"] <= 99:
+                errors.append("payload.vulIdLst.vulNum must be from 0 to 99")
         if "data" in payload:
             _validate_file_data(payload["data"], "payload.data", errors, svc_types=(3,))
         return

@@ -93,6 +93,7 @@ def test_interface_6_accepts_typed_vulnerability_ids_for_both_response_subtypes(
         ("dstVulStat", [1, 1] + [-1] * 9),
         ("sucVulNum", [0]),
         ("sucVulNum", [-2] + [0] * 10),
+        ("sucVulNum", [10000] + [0] * 10),
         ("tktResult", 3),
         ("prcVulNum", -1),
     ],
@@ -102,6 +103,17 @@ def test_interface_6_rejects_invalid_result_slots_and_counts(field: str, value) 
     inner["vulTktRspParams"][field] = value
 
     assert validate_business_payload(6, inner)
+
+
+def test_interface_6_accepts_four_digit_success_count_boundary() -> None:
+    inner = deepcopy(_fixture(6)["inner"])
+    response = inner["vulTktRspParams"]
+    response["prcVulNum"] = 9999
+    response["dstVulStat"] = [-1, 1] + [-1] * 9
+    response["sucVulNum"] = [-1, 9999] + [-1] * 9
+    response["tktResult"] = 1
+
+    assert validate_business_payload(6, inner) == []
 
 
 @pytest.mark.parametrize(

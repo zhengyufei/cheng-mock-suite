@@ -1,7 +1,15 @@
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
+
+import pytest
+
+from mock_ministry.mocks.protocol_ministry_platform.payloads import (
+    _is_safe_archive_file_name,
+    validate_business_payload,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -89,3 +97,85 @@ def test_protocol_platform_manifest_lists_feature_interface_coverage() -> None:
     assert strict_line["sm2_sm4"] == "real"
     assert strict_line["verification_nature"] == "local_mock_only"
     assert strict_line["production_ministry_joint_test"] is False
+
+
+def _interface_6_fixture_payload() -> dict:
+    fixture = ROOT / "fixtures" / "receive" / "prod_vul_workorder_6_callback.json"
+    return json.loads(fixture.read_text(encoding="utf-8"))["inner"]
+
+
+def test_interface_6_delivery_fixture_matches_strict_contract() -> None:
+    assert validate_business_payload(6, _interface_6_fixture_payload()) == []
+
+
+def test_interface_6_optional_ticket_info_can_be_omitted() -> None:
+    payload = _interface_6_fixture_payload()
+    payload["vulTktRspParams"].pop("tktInfo")
+
+    assert validate_business_payload(6, payload) == []
+
+
+def test_interface_6_rejects_blank_operator_fields() -> None:
+    for field in ("srcTktProcer", "srcTktProcerDept"):
+        payload = copy.deepcopy(_interface_6_fixture_payload())
+        payload["vulTktRspParams"][field] = " "
+
+        errors = validate_business_payload(6, payload)
+
+        assert any(field in error and "blank" in error for error in errors)
+
+
+def test_interface_6_rejects_invalid_role_and_blank_vulnerability_id() -> None:
+    payload = _interface_6_fixture_payload()
+    payload["vulTktRspParams"]["srcTktRole"] = 11
+    payload["vulIdLst"]["idLst"] = [" "]
+
+    errors = validate_business_payload(6, payload)
+
+    assert any("srcTktRole" in error for error in errors)
+    assert any("idLst[0]" in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("srcTktProcer", "x" * 256),
+        ("srcTktProcerDept", "x" * 256),
+        ("tktInfo", "x" * 2049),
+    ],
+)
+def test_interface_6_rejects_overlong_ticket_text(field, value) -> None:
+    payload = _interface_6_fixture_payload()
+    payload["vulTktRspParams"][field] = value
+
+    errors = validate_business_payload(6, payload)
+
+    assert any(field in error for error in errors)
+
+
+def test_interface_6_rejects_more_than_99_vulnerability_ids() -> None:
+    payload = _interface_6_fixture_payload()
+    payload["vulIdLst"] = {
+        "idLst": [f"MVM-{index:03d}" for index in range(100)],
+        "vulNum": 100,
+    }
+
+    errors = validate_business_payload(6, payload)
+
+    assert any("vulNum" in error and "0 to 99" in error for error in errors)
+
+
+def test_mock_rejects_nonportable_archive_names() -> None:
+    unsafe_names = [
+        "CON.json",
+        "payload.json.",
+        "payload.json ",
+        "a<b.json",
+        "a>b.json",
+        "a|b.json",
+        "a?b.json",
+        "a*b.json",
+        'a"b.json',
+    ]
+
+    assert not any(_is_safe_archive_file_name(name) for name in unsafe_names)

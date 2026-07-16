@@ -12,9 +12,14 @@
     "orderSubType": 21,
     "timeStamp": "20260705093000",
     "vulTktRspParams": {
-      "dstVulStat": [1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-      "sucVulNum": [1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-      "tktResult": 0,
+      "srcTktRole": 1,
+      "srcTktProcer": "NA",
+      "srcTktProcerDept": "NA",
+      "dstTktRole": 1,
+      "prcVulNum": 1,
+      "dstVulStat": [-1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+      "sucVulNum": [-1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+      "tktResult": 1,
       "tktInfo": "mock callback complete"
     },
     "vulIdLst": {
