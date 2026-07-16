@@ -95,7 +95,7 @@ def test_interface_4_accepts_only_non_null_optional_file_data() -> None:
                 "name": "interface-4-evidence.json",
                 "dataType": "json",
                 "objectID": "interface-4-evidence",
-                "svcType": 12,
+                "svcType": 4,
                 "reserved": "",
             }
         ],
@@ -106,6 +106,52 @@ def test_interface_4_accepts_only_non_null_optional_file_data() -> None:
     fixture["inner"]["data"] = None
     errors = payloads.validate_business_payload(4, fixture["inner"])
     assert any("payload.data" in error for error in errors)
+
+
+def test_interface_3_and_4_file_oracle_enforces_protocol_service_types() -> None:
+    _, fixtures, payloads, _, _ = _modules()
+    request = fixtures.build_work_order_request(31, "2026071400000000046")
+    request["inner"]["data"] = {
+        "numFiles": 1,
+        "numTgzs": 1,
+        "fileInfoLst": [
+            {
+                "name": "request-poc.json",
+                "dataType": "json",
+                "objectID": "SYS-001",
+                "svcType": 2,
+                "reserved": "",
+            }
+        ],
+    }
+    response = fixtures.build_work_order_response(31, "2026071400000000046")
+    response["inner"]["data"] = {
+        "numFiles": 1,
+        "numTgzs": 1,
+        "fileInfoLst": [
+            {
+                "name": "manual-evidence.json",
+                "dataType": "json",
+                "objectID": "SYS-001",
+                "svcType": 4,
+                "reserved": "",
+            }
+        ],
+    }
+
+    assert payloads.validate_business_payload(3, request["inner"]) == []
+    assert payloads.validate_business_payload(4, response["inner"]) == []
+
+    request["inner"]["data"]["fileInfoLst"][0]["svcType"] = 4
+    response["inner"]["data"]["fileInfoLst"][0]["svcType"] = 12
+    assert any(
+        "only 2 or 5" in error
+        for error in payloads.validate_business_payload(3, request["inner"])
+    )
+    assert any(
+        "only 3, 4, 5, 11 or 13" in error
+        for error in payloads.validate_business_payload(4, response["inner"])
+    )
 
 
 def _nonempty_interface_4_fixture(fixtures):
@@ -452,6 +498,181 @@ def test_strict_validator_rejects_protocol_semantic_drift(
     )
 
     assert any(fragment in error for error in errors), errors
+
+
+@pytest.mark.parametrize("perd", [-1, 1, 65535])
+def test_interface_3_mock_accepts_protocol_time_period_values(perd: int) -> None:
+    _, fixtures, payloads, _, _ = _modules()
+    fixture = fixtures.build_work_order_request(31, "2026071400000000066")
+    fixture["inner"]["timePerd"]["perd"] = perd
+
+    assert payloads.validate_business_payload(3, fixture["inner"]) == []
+
+
+@pytest.mark.parametrize("perd", [-2, 0, 65536])
+def test_interface_3_mock_rejects_invalid_time_period_values(perd: int) -> None:
+    _, fixtures, payloads, _, _ = _modules()
+    fixture = fixtures.build_work_order_request(31, "2026071400000000067")
+    fixture["inner"]["timePerd"]["perd"] = perd
+
+    errors = payloads.validate_business_payload(3, fixture["inner"])
+
+    assert any("timePerd.perd" in error for error in errors)
+
+
+def test_interface_3_fixture_contains_all_required_range_nodes() -> None:
+    _, fixtures, _, _, _ = _modules()
+    fixture = fixtures.build_work_order_request(31, "2026071400000000068")
+    decoded = base64.b64decode(fixture["inner"]["vulInfoRange"], validate=True).decode("utf-8")
+
+    assert "vulKeys." in decoded
+    assert "assetInfoRange." in decoded
+    assert "vulInfoStat" in decoded
+
+
+@pytest.mark.parametrize(
+    "invalid_dsl",
+    [
+        "(vulKeys.vulID = 'MVM-001') AND (assetInfoRange.assetID = 'ASSET-001')",
+        "(vulKeys.vulID = 'MVM-001') OR "
+        "(assetInfoRange.assetID = 'ASSET-001') AND (vulInfoStat = -1)",
+        "(vulKeys.vulID = 'MVM-001') AND (vulKeys.vulLevel = 1) AND "
+        "(assetInfoRange.assetID = 'ASSET-001') AND (vulInfoStat = -1)",
+        "(vulKeys IS NULL) AND (assetInfoRange.assetID = 'ASSET-001') "
+        "AND (vulInfoStat = -1)",
+    ],
+)
+def test_interface_3_mock_rejects_invalid_protocol_range_structure(invalid_dsl: str) -> None:
+    _, fixtures, payloads, _, _ = _modules()
+    fixture = fixtures.build_work_order_request(31, "2026071400000000070")
+    fixture["inner"]["vulInfoRange"] = base64.b64encode(
+        invalid_dsl.encode("utf-8")
+    ).decode("ascii")
+
+    errors = payloads.validate_business_payload(3, fixture["inner"])
+
+    assert any("vulInfoRange" in error for error in errors), errors
+
+
+@pytest.mark.parametrize(
+    "invalid_dsl",
+    [
+        "(vulKeys.vulID = NULL) AND "
+        "(assetInfoRange.assetID = 'ASSET-001') AND (vulInfoStat = -1)",
+        "(vulKeys.vulID = 'MVM-001') AND "
+        "(assetInfoRange.targetPortFileLoc = 'abc') AND (vulInfoStat = -1)",
+        "(vulKeys.vulLevel = 'high') AND "
+        "(assetInfoRange.assetID = 'ASSET-001') AND (vulInfoStat = -1)",
+    ],
+)
+def test_interface_3_mock_rejects_values_that_production_dsl_rejects(
+    invalid_dsl: str,
+) -> None:
+    _, fixtures, payloads, _, _ = _modules()
+    fixture = fixtures.build_work_order_request(31, "2026071400000000075")
+    fixture["inner"]["vulInfoRange"] = base64.b64encode(
+        invalid_dsl.encode("utf-8")
+    ).decode("ascii")
+
+    errors = payloads.validate_business_payload(3, fixture["inner"])
+
+    assert any("vulInfoRange" in error for error in errors), errors
+
+
+def test_interface_3_mock_accepts_numeric_and_string_values_by_production_field_type() -> None:
+    _, fixtures, payloads, _, _ = _modules()
+    fixture = fixtures.build_work_order_request(31, "2026071400000000076")
+    fixture["inner"]["vulInfoRange"] = base64.b64encode(
+        b"(vulKeys.vulID = 'MVM-001') AND "
+        b"(assetInfoRange.targetPortFileLoc = 443) AND (vulInfoStat = -1)"
+    ).decode("ascii")
+
+    assert payloads.validate_business_payload(3, fixture["inner"]) == []
+
+
+@pytest.mark.parametrize(
+    ("field", "dictionary_id"),
+    [
+        ("pwDictID", 0),
+        ("pwDictKeys.pwDictID", 65535),
+        ("pwDictRange.pwDictID", 32768),
+    ],
+)
+def test_interface_3_mock_accepts_password_dictionary_protocol_range(
+    field: str,
+    dictionary_id: int,
+) -> None:
+    _, fixtures, payloads, _, _ = _modules()
+    fixture = fixtures.build_work_order_request(31, "2026071400000000071")
+    fixture["inner"]["vulInfoRange"] = base64.b64encode(
+        b"(vulKeys IS NULL) AND (assetInfoRange.assetID = 'ASSET-001') "
+        b"AND (vulInfoStat = -1)"
+    ).decode("ascii")
+    fixture["inner"]["pwDictRange"] = base64.b64encode(
+        f"{field} = {dictionary_id}".encode("utf-8")
+    ).decode("ascii")
+
+    assert payloads.validate_business_payload(3, fixture["inner"]) == []
+
+
+def test_interface_3_mock_accepts_protocol_none_password_range() -> None:
+    _, fixtures, payloads, _, _ = _modules()
+    fixture = fixtures.build_work_order_request(31, "2026071400000000074")
+    fixture["inner"]["pwDictRange"] = base64.b64encode(b"None").decode("ascii")
+
+    assert payloads.validate_business_payload(3, fixture["inner"]) == []
+
+
+@pytest.mark.parametrize("dictionary_id", [-1, 65536])
+def test_interface_3_mock_rejects_password_dictionary_id_outside_uint16(
+    dictionary_id: int,
+) -> None:
+    _, fixtures, payloads, _, _ = _modules()
+    fixture = fixtures.build_work_order_request(31, "2026071400000000072")
+    fixture["inner"]["vulInfoRange"] = base64.b64encode(
+        b"(vulKeys IS NULL) AND (assetInfoRange.assetID = 'ASSET-001') "
+        b"AND (vulInfoStat = -1)"
+    ).decode("ascii")
+    fixture["inner"]["pwDictRange"] = base64.b64encode(
+        f"pwDictID = {dictionary_id}".encode("utf-8")
+    ).decode("ascii")
+
+    errors = payloads.validate_business_payload(3, fixture["inner"])
+
+    assert any("pwDictRange" in error for error in errors), errors
+
+
+def test_interface_3_mock_rejects_product_vulnerability_range_with_password_filter() -> None:
+    _, fixtures, payloads, _, _ = _modules()
+    fixture = fixtures.build_work_order_request(31, "2026071400000000073")
+    fixture["inner"]["pwDictRange"] = base64.b64encode(b"pwDictID = 32768").decode(
+        "ascii"
+    )
+
+    errors = payloads.validate_business_payload(3, fixture["inner"])
+
+    assert any("vulInfoRange" in error for error in errors), errors
+
+
+@pytest.mark.parametrize(
+    "invalid_dsl",
+    [
+        "vulInfoStat = 9 trailing",
+        "vulInfoStat = 9 AND",
+        "(vulInfoStat = 9",
+        "(vulInfoStat = 9) AND (unknownField = 1)",
+    ],
+)
+def test_interface_21_mock_rejects_dsl_not_fully_accepted_by_backend(invalid_dsl: str) -> None:
+    _, fixtures, payloads, _, _ = _modules()
+    fixture = fixtures.build_additional_fixture(21, "2026071400000000069")
+    fixture["inner"]["vulInfoRange"] = base64.b64encode(invalid_dsl.encode("utf-8")).decode(
+        "ascii"
+    )
+
+    errors = payloads.validate_business_payload(21, fixture["inner"])
+
+    assert any("protocol DSL" in error for error in errors), errors
 
 
 def test_password_dictionary_rejects_statistical_count_list_mismatch() -> None:

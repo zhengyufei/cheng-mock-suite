@@ -139,8 +139,8 @@ def _interface_6(sequence: str):
             "tktResult": 1,
             "tktInfo": "completed",
         },
-        "vulIdLst": {"idLst": [{"vulID": f"MVM-{sequence}"}], "vulNum": 1},
-        "data": _file_data(1),
+        "vulIdLst": {"idLst": [f"MVM-{sequence}"], "vulNum": 1},
+        "data": _file_data(3),
     }
     return f"1-21-{sequence}", inner
 
@@ -206,7 +206,14 @@ def _interface_15(sequence: str):
 
 
 def _interface_24(sequence: str):
-    inner = {**_base(2, 309), "registerReqParams": {"devHash": "a" * 32, "devIp": "10.8.100.7"}}
+    inner = {
+        **_base(2, 309),
+        "registerReqParams": {
+            "devHash": "a" * 32,
+            "devIp": "10.8.100.7",
+            "reqAct": 0,
+        },
+    }
     return f"2-309-{sequence}", inner
 
 

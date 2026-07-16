@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 from pathlib import Path
@@ -27,6 +28,10 @@ from .contracts import (
 _SEQUENCE_RE = re.compile(r"^\d{19}$")
 _FIXTURE_ROOT = Path(__file__).resolve().parents[3] / "fixtures" / "additional_ministry"
 _SIGN = "a" * 64
+
+
+def _encoded_range(value: str) -> str:
+    return base64.b64encode(value.encode("utf-8")).decode("ascii")
 
 
 def walk_values(value: Any) -> Iterator[Any]:
@@ -85,7 +90,10 @@ def build_work_order_request(request_subtype: int, sequence: str) -> dict[str, A
         "sign": _SIGN,
         "procTime": "20260714000000-20260715000000",
         "timePerd": {"unit": 1, "perd": 1},
-        "vulInfoRange": "KHZ1bEtleXMudnVsSUQgPSAnTVZNLTAwMScp",
+        "vulInfoRange": _encoded_range(
+            "(vulKeys.vulID = 'MVM-001') AND "
+            "(assetInfoRange.assetID = 'ASSET-001') AND (vulInfoStat = -1)"
+        ),
         "vulInfoTktReqParams": {
             "vptModID": "acceptance-vpt-model",
             "srcTktRole": 6,

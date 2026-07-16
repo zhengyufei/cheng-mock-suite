@@ -38,8 +38,11 @@ def test_shared_fixture_is_exact_and_strictly_typed(interface_no: int) -> None:
     assert validate_business_payload(interface_no, fixture["inner"], ctx_code=fixture["ctxCode"]) == []
 
 
-@pytest.mark.parametrize("interface_no", (5, 6))
-def test_product_work_order_file_is_optional_and_only_accepts_literal_svc_type_1(interface_no: int) -> None:
+@pytest.mark.parametrize(("interface_no", "svc_type"), ((5, 1), (6, 3)))
+def test_product_work_order_file_is_optional_and_uses_protocol_svc_type(
+    interface_no: int,
+    svc_type: int,
+) -> None:
     inner = deepcopy(_fixture(interface_no)["inner"])
     inner.pop("data", None)
     assert validate_business_payload(interface_no, inner) == []
@@ -52,14 +55,14 @@ def test_product_work_order_file_is_optional_and_only_accepts_literal_svc_type_1
                 "name": "literal-poc.py",
                 "dataType": "file",
                 "objectID": "CVE-2026-0001",
-                "svcType": 1,
+                "svcType": svc_type,
                 "reserved": "",
             }
         ],
     }
     assert validate_business_payload(interface_no, inner) == []
 
-    inner["data"]["fileInfoLst"][0]["svcType"] = 3
+    inner["data"]["fileInfoLst"][0]["svcType"] = 3 if svc_type == 1 else 1
     errors = validate_business_payload(interface_no, inner)
     assert any("svcType" in error for error in errors), errors
 
@@ -78,20 +81,51 @@ def test_interface_6_accepts_typed_vulnerability_ids_for_both_response_subtypes(
 ) -> None:
     inner = deepcopy(_fixture(6)["inner"])
     inner["orderSubType"] = response_subtype
-    inner["vulIdLst"] = {"idLst": [{"vulID": "MVM-2026-0001"}], "vulNum": 1}
+    inner["vulIdLst"] = {"idLst": ["MVM-2026-0001"], "vulNum": 1}
 
     assert validate_business_payload(6, inner) == []
 
 
 @pytest.mark.parametrize(
-    ("subtype", "ids", "count"),
+    ("field", "value"),
     [
-        (23, [{"vulID": "MVM-2026-0001"}], 1),
-        (21, ["MVM-2026-0001"], 1),
-        (22, [{"vulID": "MVM-2026-0001"}], 2),
+        ("dstVulStat", [0]),
+        ("dstVulStat", [1, 1] + [-1] * 9),
+        ("sucVulNum", [0]),
+        ("sucVulNum", [-2] + [0] * 10),
+        ("tktResult", 3),
+        ("prcVulNum", -1),
     ],
 )
-def test_interface_6_rejects_wrong_subtype_untyped_ids_and_count_mismatch(
+def test_interface_6_rejects_invalid_result_slots_and_counts(field: str, value) -> None:
+    inner = deepcopy(_fixture(6)["inner"])
+    inner["vulTktRspParams"][field] = value
+
+    assert validate_business_payload(6, inner)
+
+
+@pytest.mark.parametrize(
+    "unsafe_name",
+    [".", "..", "../a.json", "..\\a.json", "C:a.json", "bad\nname"],
+)
+def test_file_metadata_rejects_unsafe_archive_business_names(unsafe_name: str) -> None:
+    inner = deepcopy(_fixture(6)["inner"])
+    inner["data"]["fileInfoLst"][0]["name"] = unsafe_name
+
+    assert validate_business_payload(6, inner)
+
+
+@pytest.mark.parametrize(
+    ("subtype", "ids", "count"),
+    [
+        (23, ["MVM-2026-0001"], 1),
+        (21, [{"vulID": "MVM-2026-0001"}], 1),
+        (22, ["MVM-2026-0001"], 2),
+        (21, [""], 1),
+        (22, ["x" * 256], 1),
+    ],
+)
+def test_interface_6_rejects_wrong_subtype_object_ids_and_count_mismatch(
     subtype: int,
     ids: list,
     count: int,

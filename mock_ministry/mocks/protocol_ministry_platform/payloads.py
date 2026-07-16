@@ -105,6 +105,14 @@ SYSTEM_VULNERABILITY_KEYS = {
     "vulPriorLvl",
     "vulPriorMID",
 }
+
+
+def _is_safe_archive_file_name(value: Any) -> bool:
+    if not isinstance(value, str) or not value or value in {".", ".."}:
+        return False
+    if any(character in value for character in ("/", "\\", ":")):
+        return False
+    return not any(ord(character) < 32 or ord(character) == 127 for character in value)
 SYSTEM_VULNERABILITY_REQUIRED_KEYS = {
     "vulInfoID",
     "srcMethod",
@@ -136,12 +144,220 @@ _UNREPAIRED_REASONS = {101, 102, 103, 104, 105, 107, 108, 109, 999}
 _REMEDIATION_DURATION_RE = re.compile(r"^[0-9]+(?:\.[0-9]+)?[日周月]$")
 
 _PROC_TIME_RE = re.compile(r"^(\d{14})-(\d{14})$")
-_DSL_FIELD_RE = re.compile(
-    r"\b(?:vulKeys(?:\.[A-Za-z][A-Za-z0-9_]*)?|assetInfoRange(?:\.[A-Za-z][A-Za-z0-9_]*)?|"
-    r"vulInfoStat|vulInfoID)\b\s*(?:=|!=|like\b|in\b|not\s+in\b|is\s+(?:not\s+)?null\b)",
-    re.IGNORECASE,
-)
 _DSL_FORBIDDEN_RE = re.compile(r"(?:;|--|/\*|\b(?:drop|delete|insert|update|alter|create)\b)", re.IGNORECASE)
+_DSL_TOKEN_RE = re.compile(
+    r"\s+|'(?:\\\\|\\'|[^'\r\n])*'|-?\d+(?:\.\d+)?|<=|>=|<>|!=|=|>|<|"
+    r"\(|\)|,|\.|[A-Za-z_$][A-Za-z0-9_$]*"
+)
+_DSL_ALLOWED_FIELDS = frozenset(
+    {
+        "vulkeys",
+        "vulkeys.vulid",
+        "vulkeys.lclid",
+        "vulkeys.vulname",
+        "vulkeys.vullevel",
+        "vulkeys.vultype",
+        "vulkeys.orgvulid",
+        "assetinforange.assetid",
+        "assetinforange.id",
+        "assetinforange.rngip",
+        "assetinforange.ip",
+        "assetinforange.name",
+        "assetinforange.assetname",
+        "assetinforange.targetportfileloc",
+        "assetinforange.port",
+        "assetinforange.assettype",
+        "assetinforange.assettag",
+        "assetinforange.isaccess",
+        "assetinforange.unittype",
+        "assetinforange.nete",
+        "assetinforange.assetmodel",
+        "assetinforange.modelname",
+        "assetinforange.assetvendor",
+        "assetinforange.vendorname",
+        "assetinforange.assetbrand",
+        "assetinforange.brandname",
+        "assetinforange.state",
+        "vulinfostat",
+        "vulinfoid",
+    }
+)
+_PW_DICT_DSL_ALLOWED_FIELDS = frozenset(
+    {
+        "pwdictid",
+        "pwdictkeys.pwdictid",
+        "pwdictrange.pwdictid",
+    }
+)
+_REQUIRED_VUL_RANGE_NODES = ("vulkeys", "assetinforange", "vulinfostat")
+_OPTIONAL_VUL_RANGE_NODES = ("vulinfoid",)
+_DSL_DECIMAL_FIELDS = frozenset(
+    {
+        "vulkeys.vullevel",
+        "vulkeys.vultype",
+        "assetinforange.targetportfileloc",
+        "assetinforange.port",
+        "assetinforange.isaccess",
+        "vulinfostat",
+    }
+)
+
+
+class _DslParser:
+    """完整消费部侧漏洞范围 DSL，并限制为生产端支持的字段。"""
+
+    def __init__(
+        self,
+        source: str,
+        *,
+        allowed_fields: frozenset[str] = _DSL_ALLOWED_FIELDS,
+    ):
+        self.tokens = self._tokenize(source.replace('"', "'"))
+        self.index = 0
+        self.allowed_fields = allowed_fields
+
+    @staticmethod
+    def _tokenize(source: str) -> list[str]:
+        tokens: list[str] = []
+        offset = 0
+        while offset < len(source):
+            match = _DSL_TOKEN_RE.match(source, offset)
+            if match is None:
+                raise ValueError("invalid DSL token")
+            token = match.group(0)
+            offset = match.end()
+            if not token.isspace():
+                tokens.append(token)
+        if not tokens:
+            raise ValueError("empty DSL")
+        return tokens
+
+    def parse(self) -> tuple:
+        node = self._parse_or()
+        if self.index != len(self.tokens):
+            raise ValueError("trailing DSL input")
+        return node
+
+    def _peek(self) -> str | None:
+        return self.tokens[self.index] if self.index < len(self.tokens) else None
+
+    def _take(self) -> str:
+        token = self._peek()
+        if token is None:
+            raise ValueError("unexpected end of DSL")
+        self.index += 1
+        return token
+
+    def _accept(self, expected: str) -> bool:
+        token = self._peek()
+        if token is not None and token.upper() == expected:
+            self.index += 1
+            return True
+        return False
+
+    def _expect(self, expected: str) -> None:
+        if not self._accept(expected):
+            raise ValueError(f"expected {expected}")
+
+    def _parse_or(self) -> tuple:
+        node = self._parse_and()
+        while self._accept("OR"):
+            node = ("or", node, self._parse_and())
+        return node
+
+    def _parse_and(self) -> tuple:
+        node = self._parse_atom()
+        while self._accept("AND"):
+            node = ("and", node, self._parse_atom())
+        return node
+
+    def _parse_atom(self) -> tuple:
+        if self._accept("("):
+            node = self._parse_or()
+            self._expect(")")
+            return ("group", node)
+
+        field = self._parse_field()
+        if self._accept("IS"):
+            negated = self._accept("NOT")
+            self._expect("NULL")
+            return (
+                "atom",
+                field,
+                "is_not_null" if negated else "is_null",
+                (),
+            )
+
+        if field == "vulkeys":
+            raise ValueError("bare vulKeys only supports IS NULL")
+
+        negated = self._accept("NOT")
+        if self._accept("BETWEEN"):
+            first = self._parse_value()
+            self._expect("AND")
+            second = self._parse_value()
+            return (
+                "atom",
+                field,
+                "not_between" if negated else "between",
+                (first, second),
+            )
+        if self._accept("IN"):
+            self._expect("(")
+            values = [self._parse_value()]
+            while self._accept(","):
+                values.append(self._parse_value())
+            self._expect(")")
+            return (
+                "atom",
+                field,
+                "not_in" if negated else "in",
+                tuple(values),
+            )
+        if self._accept("LIKE"):
+            value = self._parse_value()
+            return (
+                "atom",
+                field,
+                "not_like" if negated else "like",
+                (value,),
+            )
+        if negated:
+            raise ValueError("NOT requires BETWEEN, IN, or LIKE")
+
+        operator = self._take()
+        if operator not in {"=", ">", "<", "<=", ">=", "<>", "!="}:
+            raise ValueError("missing comparison operator")
+        value = self._parse_value()
+        if field == "vulinfostat" and re.fullmatch(r"-?\d+(?:\.\d+)?", value) is None:
+            raise ValueError("vulInfoStat requires a decimal value")
+        return ("atom", field, operator, (value,))
+
+    def _parse_field(self) -> str:
+        first = self._take()
+        if re.fullmatch(r"[A-Za-z_$][A-Za-z0-9_$]*", first) is None:
+            raise ValueError("invalid DSL field")
+        field = first
+        if self._accept("."):
+            second = self._take()
+            if re.fullmatch(r"[A-Za-z_$][A-Za-z0-9_$]*", second) is None:
+                raise ValueError("invalid DSL field suffix")
+            field = f"{field}.{second}"
+        field = field.lower()
+        if field not in self.allowed_fields:
+            raise ValueError("unsupported DSL field")
+        return field
+
+    def _parse_value(self) -> str:
+        value = self._take()
+        if (
+            value.upper() == "NULL"
+            or re.fullmatch(r"[A-Za-z_$][A-Za-z0-9_$]*", value)
+            or re.fullmatch(r"-?\d+(?:\.\d+)?", value)
+            or re.fullmatch(r"'(?:\\\\|\\'|[^'\r\n])*'", value)
+        ):
+            return value
+        raise ValueError("invalid DSL value")
 
 
 def _exact_keys(value: Any, expected: set[str] | frozenset[str], path: str, errors: list[str]) -> None:
@@ -214,16 +430,169 @@ def _validate_proc_time(value: Any, path: str, errors: list[str]) -> None:
         errors.append(f"{path} start must be earlier than end")
 
 
-def _validate_base64_dsl(value: Any, path: str, errors: list[str]) -> None:
+def _parse_base64_dsl(
+    value: Any,
+    path: str,
+    errors: list[str],
+    *,
+    allowed_fields: frozenset[str] = _DSL_ALLOWED_FIELDS,
+    allow_none_literal: bool = False,
+) -> tuple[str, tuple] | None:
     if not isinstance(value, str):
-        return
+        return None
     try:
         decoded = base64.b64decode(value, validate=True).decode("utf-8")
     except (binascii.Error, UnicodeDecodeError, ValueError):
         errors.append(f"{path} must be valid Base64 UTF-8")
-        return
-    if not decoded.strip() or _DSL_FORBIDDEN_RE.search(decoded) or _DSL_FIELD_RE.search(decoded) is None:
+        return None
+    if allow_none_literal and decoded.strip().lower() == "none":
+        return decoded.strip(), ("sentinel",)
+    try:
+        if _DSL_FORBIDDEN_RE.search(decoded):
+            raise ValueError("forbidden DSL token")
+        node = _DslParser(decoded, allowed_fields=allowed_fields).parse()
+    except ValueError:
         errors.append(f"{path} must decode to the protocol DSL")
+        return None
+    return decoded.strip(), node
+
+
+def _validate_base64_dsl(value: Any, path: str, errors: list[str]) -> None:
+    _parse_base64_dsl(value, path, errors)
+
+
+def _dsl_atoms(node: tuple):
+    if node[0] == "atom":
+        yield node
+        return
+    for child in node[1:]:
+        yield from _dsl_atoms(child)
+
+
+def _dsl_range_node_names(node: tuple) -> set[str]:
+    names = set()
+    for atom in _dsl_atoms(node):
+        field = atom[1]
+        if field == "vulkeys" or field.startswith("vulkeys."):
+            names.add("vulkeys")
+        elif field.startswith("assetinforange."):
+            names.add("assetinforange")
+        elif field == "vulinfostat":
+            names.add("vulinfostat")
+        elif field == "vulinfoid":
+            names.add("vulinfoid")
+    return names
+
+
+def _dsl_top_level_range_groups(node: tuple) -> list[tuple[tuple, bool]]:
+    if node[0] == "group":
+        child = node[1]
+        if len(_dsl_range_node_names(child)) > 1:
+            return _dsl_top_level_range_groups(child)
+        return [(child, True)]
+    if node[0] == "and":
+        return (
+            _dsl_top_level_range_groups(node[1])
+            + _dsl_top_level_range_groups(node[2])
+        )
+    return [(node, False)]
+
+
+def _validate_interface_3_ranges(payload: dict[str, Any], errors: list[str]) -> None:
+    password_range = payload.get("pwDictRange")
+    has_password_range = False
+    if password_range is not None:
+        parsed_password = _parse_base64_dsl(
+            password_range,
+            "payload.pwDictRange",
+            errors,
+            allowed_fields=_PW_DICT_DSL_ALLOWED_FIELDS,
+            allow_none_literal=True,
+        )
+        if parsed_password is not None:
+            decoded_password, password_node = parsed_password
+            if decoded_password.lower() != "none":
+                has_password_range = True
+                for atom in _dsl_atoms(password_node):
+                    values = atom[3]
+                    if not values or any(
+                        re.fullmatch(r"\d+", value) is None
+                        or not 0 <= int(value) <= 65535
+                        for value in values
+                    ):
+                        errors.append(
+                            "payload.pwDictRange pwDictID must be a decimal between 0 and 65535"
+                        )
+                        break
+
+    parsed_vulnerability = _parse_base64_dsl(
+        payload.get("vulInfoRange"),
+        "payload.vulInfoRange",
+        errors,
+    )
+    if parsed_vulnerability is None:
+        return
+    _, vulnerability_node = parsed_vulnerability
+    for atom in _dsl_atoms(vulnerability_node):
+        field = atom[1]
+        values = atom[3]
+        if any(value.upper() == "NULL" for value in values):
+            errors.append(
+                "payload.vulInfoRange NULL is only allowed with IS NULL or IS NOT NULL"
+            )
+            return
+        if field in _DSL_DECIMAL_FIELDS and any(
+            re.fullmatch(r"-?\d+(?:\.\d+)?", value) is None
+            for value in values
+        ):
+            errors.append(
+                f"payload.vulInfoRange field {field} requires a decimal literal"
+            )
+            return
+    groups_by_node = {
+        node: []
+        for node in (*_REQUIRED_VUL_RANGE_NODES, *_OPTIONAL_VUL_RANGE_NODES)
+    }
+    for group, is_parenthesized in _dsl_top_level_range_groups(vulnerability_node):
+        node_names = _dsl_range_node_names(group)
+        if len(node_names) > 1:
+            errors.append("payload.vulInfoRange groups may only be combined with AND")
+            return
+        if group[0] == "or" and not is_parenthesized:
+            errors.append("payload.vulInfoRange top-level operator must be AND")
+            return
+        if node_names:
+            groups_by_node[next(iter(node_names))].append(group)
+
+    for node in _REQUIRED_VUL_RANGE_NODES:
+        if not groups_by_node[node]:
+            errors.append(f"payload.vulInfoRange missing required node: {node}")
+    for node, groups in groups_by_node.items():
+        if len(groups) > 1:
+            errors.append(f"payload.vulInfoRange duplicate top-level node: {node}")
+
+    vulkeys_groups = groups_by_node["vulkeys"]
+    if len(vulkeys_groups) != 1:
+        return
+    vulkeys_atoms = list(_dsl_atoms(vulkeys_groups[0]))
+    is_exact_null_group = (
+        len(vulkeys_atoms) == 1
+        and vulkeys_atoms[0][1] == "vulkeys"
+        and vulkeys_atoms[0][2] == "is_null"
+    )
+    has_product_condition = any(
+        atom[1].startswith("vulkeys.") for atom in vulkeys_atoms
+    )
+    has_null_condition = any(
+        atom[1] == "vulkeys" and atom[2] == "is_null"
+        for atom in vulkeys_atoms
+    )
+    if has_password_range and not is_exact_null_group:
+        errors.append("payload.vulInfoRange pwDictRange requires vulKeys IS NULL")
+    if not has_password_range and (has_null_condition or not has_product_condition):
+        errors.append(
+            "payload.vulInfoRange vulKeys must contain a product vulnerability condition"
+        )
 
 
 def _validate_file_data(
@@ -254,6 +623,8 @@ def _validate_file_data(
             continue
         for field in ("name", "dataType", "objectID", "reserved"):
             _typed(info, field, str, info_path, errors)
+        if not _is_safe_archive_file_name(info.get("name")):
+            errors.append(f"{info_path}.name must be a plain portable file name")
         _typed(info, "svcType", int, info_path, errors)
         if type(info.get("svcType")) is int:
             actual_svc_types.append(info["svcType"])
@@ -511,6 +882,10 @@ def _validate_work_order(interface_no: int, payload: dict[str, Any], errors: lis
             "vulInfoRange",
             "vulInfoTktReqParams",
         }
+        if "data" in payload:
+            expected.add("data")
+        if "pwDictRange" in payload:
+            expected.add("pwDictRange")
         _exact_keys(payload, expected, "payload", errors)
         if payload.get("orderSubType") not in WORK_ORDER_RESPONSE_SUBTYPES:
             errors.append("payload.orderSubType must be one of 31/32/33/34")
@@ -519,10 +894,12 @@ def _validate_work_order(interface_no: int, payload: dict[str, Any], errors: lis
         if isinstance(period, dict):
             _typed(period, "unit", int, "timePerd", errors)
             _typed(period, "perd", int, "timePerd", errors)
-            if period.get("unit") not in {1, 2, 3, 4}:
+            if period.get("unit") not in {1, 2, 3}:
                 errors.append("timePerd.unit must be a protocol duration enum")
-            if type(period.get("perd")) is int and period["perd"] <= 0:
-                errors.append("timePerd.perd must be positive")
+            if type(period.get("perd")) is int and not (
+                period["perd"] == -1 or 1 <= period["perd"] <= 65535
+            ):
+                errors.append("timePerd.perd must be -1 or between 1 and 65535")
         request = payload.get("vulInfoTktReqParams")
         request_keys = {
             "vptModID",
@@ -545,6 +922,11 @@ def _validate_work_order(interface_no: int, payload: dict[str, Any], errors: lis
                 _typed(request, field, str, "vulInfoTktReqParams", errors)
             statuses = request.get("dstVulInfoStat")
             _fixed_int_list(statuses, 10, "vulInfoTktReqParams.dstVulInfoStat", errors)
+        svc_types: tuple[int, ...] = ()
+        if "data" in payload:
+            svc_types = _validate_file_data(payload["data"], "payload.data", errors)
+            if any(svc_type not in {2, 5} for svc_type in svc_types):
+                errors.append("payload.data.fileInfoLst svcType must contain only 2 or 5")
     else:
         expected = {
             "orderType",
@@ -617,8 +999,13 @@ def _validate_work_order(interface_no: int, payload: dict[str, Any], errors: lis
                             status = instance["vulInfoStat"]
                             if status in actual_status_counts:
                                 actual_status_counts[status] += 1
+        svc_types: tuple[int, ...] = ()
         if "data" in payload:
-            _validate_file_data(payload["data"], "payload.data", errors)
+            svc_types = _validate_file_data(payload["data"], "payload.data", errors)
+            if any(svc_type not in {3, 4, 5, 11, 13} for svc_type in svc_types):
+                errors.append(
+                    "payload.data.fileInfoLst svcType must contain only 3, 4, 5, 11 or 13"
+                )
         response = payload.get("vulInfoTktRspParams")
         response_keys = {
             "srcTktRole",
@@ -649,6 +1036,12 @@ def _validate_work_order(interface_no: int, payload: dict[str, Any], errors: lis
                 "logNum",
             ):
                 _typed(response, field, int, "vulInfoTktRspParams", errors)
+            if (
+                type(response.get("logNum")) is int
+                and response["logNum"] > 0
+                and 11 not in svc_types
+            ):
+                errors.append("payload.data with svcType 11 is required when logNum is positive")
             for field in ("srcTktProcer", "srcTktProcerDept", "transID", "tktInfo"):
                 _typed(response, field, str, "vulInfoTktRspParams", errors)
             for field in ("exRsnLst", "exRsnNumLst", "dstVulInfoStat", "sucVulInfoNum"):
@@ -729,7 +1122,11 @@ def _validate_work_order(interface_no: int, payload: dict[str, Any], errors: lis
     _typed(payload, "sign", str, "payload", errors)
     if "procTime" in payload:
         _validate_proc_time(payload.get("procTime"), "payload.procTime", errors)
-    if "vulInfoRange" in payload:
+    if interface_no == 3:
+        if "pwDictRange" in payload:
+            _typed(payload, "pwDictRange", str, "payload", errors)
+        _validate_interface_3_ranges(payload, errors)
+    elif "vulInfoRange" in payload:
         _validate_base64_dsl(payload.get("vulInfoRange"), "payload.vulInfoRange", errors)
     if payload.get("orderType") != 1:
         errors.append("payload.orderType must be 1")
@@ -899,8 +1296,36 @@ def _validate_shared_work_orders(interface_no: int, payload: dict[str, Any], err
             errors,
         )
         if isinstance(response, dict):
-            _int_list(response.get("dstVulStat"), "payload.vulTktRspParams.dstVulStat", errors)
-            _int_list(response.get("sucVulNum"), "payload.vulTktRspParams.sucVulNum", errors)
+            destination_statuses = response.get("dstVulStat")
+            success_counts = response.get("sucVulNum")
+            _fixed_int_list(
+                destination_statuses,
+                11,
+                "payload.vulTktRspParams.dstVulStat",
+                errors,
+            )
+            _fixed_int_list(
+                success_counts,
+                11,
+                "payload.vulTktRspParams.sucVulNum",
+                errors,
+            )
+            if isinstance(destination_statuses, list) and len(destination_statuses) == 11:
+                for index, value in enumerate(destination_statuses):
+                    if type(value) is int and value not in {-1, index}:
+                        errors.append(
+                            f"payload.vulTktRspParams.dstVulStat[{index}] must be {index} or -1"
+                        )
+            if isinstance(success_counts, list):
+                for index, value in enumerate(success_counts):
+                    if type(value) is int and value < -1:
+                        errors.append(
+                            f"payload.vulTktRspParams.sucVulNum[{index}] must be -1 or non-negative"
+                        )
+            if type(response.get("prcVulNum")) is int and not 0 <= response["prcVulNum"] <= 9999:
+                errors.append("payload.vulTktRspParams.prcVulNum must be from 0 to 9999")
+            if type(response.get("tktResult")) is int and response["tktResult"] not in {0, 1, 2}:
+                errors.append("payload.vulTktRspParams.tktResult must be 0, 1 or 2")
         ids = payload.get("vulIdLst")
         _exact_keys(ids, {"idLst", "vulNum"}, "payload.vulIdLst", errors)
         if isinstance(ids, dict):
@@ -911,9 +1336,8 @@ def _validate_shared_work_orders(interface_no: int, payload: dict[str, Any], err
             else:
                 for index, item in enumerate(rows):
                     item_path = f"payload.vulIdLst.idLst[{index}]"
-                    _exact_keys(item, {"vulID"}, item_path, errors)
-                    if isinstance(item, dict):
-                        _typed(item, "vulID", str, item_path, errors)
+                    if not isinstance(item, str) or not item or len(item) > 255:
+                        errors.append(f"{item_path} must be string with 1 to 255 characters")
             if (
                 isinstance(rows, list)
                 and type(ids.get("vulNum")) is int
@@ -921,7 +1345,7 @@ def _validate_shared_work_orders(interface_no: int, payload: dict[str, Any], err
             ):
                 errors.append("payload.vulIdLst.vulNum must equal idLst length")
         if "data" in payload:
-            _validate_file_data(payload["data"], "payload.data", errors, svc_types=(1,))
+            _validate_file_data(payload["data"], "payload.data", errors, svc_types=(3,))
         return
     if interface_no == 7:
         expected = {
@@ -1015,8 +1439,20 @@ def _validate_shared_data(
         _typed_many(params, {"devHash", "decIp"}, str, "payload.polyReqParams", errors)
     elif interface_no == 24:
         params = payload.get("registerReqParams")
-        _exact_keys(params, {"devHash", "devIp"}, "payload.registerReqParams", errors)
+        _exact_keys(
+            params,
+            {"devHash", "devIp", "reqAct"},
+            "payload.registerReqParams",
+            errors,
+        )
         _typed_many(params, {"devHash", "devIp"}, str, "payload.registerReqParams", errors)
+        _typed(params, "reqAct", int, "payload.registerReqParams", errors)
+        if (
+            isinstance(params, dict)
+            and type(params.get("reqAct")) is int
+            and params["reqAct"] not in {0, 1}
+        ):
+            errors.append("payload.registerReqParams.reqAct must be 0 or 1")
     elif interface_no == 29:
         params = payload.get("eventInfoReqParams")
         keys = {"eventId", "devHash", "eventSource", "eventDescription", "eventArgs"}
