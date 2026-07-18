@@ -113,6 +113,13 @@ NEGATIVE_MUTATIONS: dict[str, dict[str, Any]] = {
         "mutate": lambda inner: inner.__setitem__("logInfoReqParams", []),
         "expected_status_code": 7,
     },
+    "mixed_log_delivery_modes": {
+        "case": "platform_log_305",
+        "mutate": lambda inner: inner["logInfoReqParams"].__setitem__(
+            "dataFileID", inner["orderID"] if "orderID" in inner else "2-305-2026071400000000001"
+        ),
+        "expected_status_code": 7,
+    },
     "missing_log_hash": {
         "case": "platform_log_305",
         "mutate": lambda inner: (

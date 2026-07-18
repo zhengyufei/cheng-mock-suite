@@ -12,6 +12,15 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
+from .contracts import (
+    PROTOCOL_FILE_MAX_ARCHIVE_MEMBERS,
+    PROTOCOL_FILE_MAX_CHUNK_BYTES,
+    PROTOCOL_FILE_MAX_CHUNKS,
+    PROTOCOL_FILE_MAX_EXTRACTED_BYTES,
+    PROTOCOL_FILE_MAX_MEMBER_BYTES,
+    PROTOCOL_FILE_MAX_TRANSFER_BYTES,
+)
+
 from .payloads import (
     SYSTEM_VULNERABILITY_KEYS,
     _validate_system_vulnerability,
@@ -74,12 +83,12 @@ class FileStateResult:
 
 @dataclass(frozen=True)
 class FileResourceLimits:
-    max_chunks: int = 16
-    max_chunk_bytes: int = 8 * 1024 * 1024
-    max_transfer_bytes: int = 32 * 1024 * 1024
-    max_tar_members: int = 128
-    max_member_bytes: int = 8 * 1024 * 1024
-    max_total_decompressed_bytes: int = 32 * 1024 * 1024
+    max_chunks: int = PROTOCOL_FILE_MAX_CHUNKS
+    max_chunk_bytes: int = PROTOCOL_FILE_MAX_CHUNK_BYTES
+    max_transfer_bytes: int = PROTOCOL_FILE_MAX_TRANSFER_BYTES
+    max_tar_members: int = PROTOCOL_FILE_MAX_ARCHIVE_MEMBERS
+    max_member_bytes: int = PROTOCOL_FILE_MAX_MEMBER_BYTES
+    max_total_decompressed_bytes: int = PROTOCOL_FILE_MAX_EXTRACTED_BYTES
     max_compression_ratio: float = 100.0
 
     def __post_init__(self) -> None:

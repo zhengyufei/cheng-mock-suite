@@ -48,7 +48,13 @@ def _post_json(base_url: str, path: str, payload: dict[str, Any]) -> dict[str, A
 
 
 def _post_file_case(base_url: str) -> dict[str, Any]:
-    order_id = "2-103-2026070300000000001"
+    order_id = "0-0-2026070300000000001"
+    metadata = {
+        "dataType": 0,
+        "dataSubType": 0,
+        "sign": "a" * 64,
+        "timeStamp": "1752500000",
+    }
     try:
         response = requests.post(
             _url(base_url, "/api/ministry/file"),
@@ -56,10 +62,10 @@ def _post_file_case(base_url: str) -> dict[str, Any]:
                 "orderID": order_id,
                 "orgCode": "MIIT",
                 "ispCode": "CMCC",
-                "ctxCode": "0",
-                "reqMsgCnt": "cipher-metadata",
+                "ctxCode": "1",
+                "reqMsgCnt": json.dumps(metadata, separators=(",", ":")),
             },
-            files={"fileChunk": ("file001_payload_1_1.tar.gz.bin", b"cipher-chunk")},
+            files={"fileChunk": (f"{'f' * 32}_payload.json_1_1.tar.gz.bin", b"cipher-chunk")},
             headers={
                 "X-Enc-Key": "key",
                 "X-Enc-Key-G": "group-key",

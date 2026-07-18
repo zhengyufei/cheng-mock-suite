@@ -13,10 +13,10 @@ from mock_ministry.recorder import FileRecorder
 
 from .contracts import (
     FEATURE_INTERFACE_COVERAGE,
-    LEGACY_PLATFORM_FILE_UPLOAD_PATH,
-    PLATFORM_FILE_PATH,
+    PLATFORM_FILE_PATHS,
+    PLATFORM_MESSAGE_PATHS,
     PLATFORM_POST_PATHS,
-    PLATFORM_RECEIVE_PATH,
+    PROTOCOL_FILE_MAX_REQUEST_BYTES,
     SUPPORTED_SCENARIOS,
 )
 from .crypto import ProtocolCrypto, ProtocolKeys
@@ -26,9 +26,22 @@ from .responses import build_protocol_response, encrypt_protocol_response
 
 
 ACCEPTED_RESPONSE = {"statusCode": 0, "statusText": "success.", "rspMsgCnt": ""}
-AUTH_REQUEST_KEYS = frozenset({"orgCode", "ispCode", "publicKey", "ip", "domain"})
-AUTH_RESPONSE = {"accessToken": "mock-ministry-access-token", "expiresIn": 3600}
-MAX_REQUEST_BYTES = 9 * 1024 * 1024
+AUTH_PATH = "/provisionOrder"
+AUTH_REQUEST_KEYS = frozenset({"orgCode", "ispCode", "public_key", "ip", "domain"})
+AUTH_RESPONSE = {
+    "access_token": "mock-ministry-access-token",
+    "expires_in": 3600,
+    "refresh_token": "mock-ministry-refresh-token",
+}
+
+
+def _is_valid_auth_request(value: object) -> bool:
+    return (
+        isinstance(value, dict)
+        and set(value) == AUTH_REQUEST_KEYS
+        and all(isinstance(value[field], str) and value[field].strip() for field in AUTH_REQUEST_KEYS)
+    )
+MAX_REQUEST_BYTES = PROTOCOL_FILE_MAX_REQUEST_BYTES
 MAX_CONCURRENT_REQUESTS = 8
 
 
@@ -356,15 +369,18 @@ def make_handler(
                 self._send_json(200, payload)
                 return
 
-            if parsed_path == PLATFORM_RECEIVE_PATH:
+            if parsed_path == AUTH_PATH or parsed_path in PLATFORM_MESSAGE_PATHS:
                 try:
                     auth_request = json.loads(body.decode("utf-8"))
                 except (UnicodeDecodeError, json.JSONDecodeError):
                     auth_request = None
-                if isinstance(auth_request, dict) and set(auth_request) == AUTH_REQUEST_KEYS:
+                if _is_valid_auth_request(auth_request):
                     response = dict(AUTH_RESPONSE)
                     self._record(body, response, 200, {"authentication": "token_refresh"})
                     self._send_json(200, response)
+                    return
+                if parsed_path == AUTH_PATH:
+                    self._send_json(400, {"statusCode": 400, "statusText": "invalid authentication request"})
                     return
                 observation = inspect_receive_body(
                     raw_body=body,
@@ -396,7 +412,7 @@ def make_handler(
                 self._send_json(response.http_status, response.body, response.headers)
                 return
 
-            if parsed_path in {PLATFORM_FILE_PATH, LEGACY_PLATFORM_FILE_UPLOAD_PATH}:
+            if parsed_path in PLATFORM_FILE_PATHS:
                 try:
                     if upload_barrier is not None:
                         upload_barrier.wait_if_armed()

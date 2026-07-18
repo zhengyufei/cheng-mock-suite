@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Any
 
 from .contracts import (
+    ENGINE_TYPE_ALLOWED_BITS,
     FILE_INFO_KEYS,
     FILE_REQUIRED_CTX_CODES,
     INTERFACE_ORDER_SUBTYPES,
@@ -50,7 +51,7 @@ PRODUCT_VULNERABILITY_KEYS = {
     "rsvdDesc",
 }
 
-SHARED_INTERFACES = frozenset({5, 6, 7, 8, 15, 24, 29, 30, 31, 32})
+SHARED_INTERFACES = frozenset({5, 6, 7, 8, 9, 10, 13, 14, 15, 23, 24, 25, 28, 29, 30, 31, 32})
 COMMON_FILE_SVC_DATA_TYPES = {
     -1: "file",
     1: "file",
@@ -1517,14 +1518,23 @@ def _validate_shared_data(
         _validate_device_status(payload.get("devInfoReqParams"), errors)
     elif interface_no == 31:
         _typed(payload, "procTime", str, "payload", errors)
-        _validate_platform_logs(payload.get("logInfoReqParams"), errors)
+        _validate_platform_logs(payload.get("logInfoReqParams"), errors, order_id=order_id)
+        params = payload.get("logInfoReqParams")
+        if isinstance(params, dict) and params.get("logInfo") == [] and "data" not in payload:
+            errors.append("file-backed interface 31 requires data")
         if "data" in payload:
             actual = _validate_file_data(payload["data"], "payload.data", errors)
-            if actual not in {(11,), (11, 13)}:
+            if tuple(sorted(actual)) not in {(11,), (11, 13)}:
                 errors.append(
-                    "payload.data.fileInfoLst svcType must be (11,) or (11, 13), "
+                    "payload.data.fileInfoLst svcType must contain 11 and may contain 13 once, "
                     f"got {actual}"
                 )
+            if isinstance(payload["data"], dict):
+                for index, info in enumerate(payload["data"].get("fileInfoLst", [])):
+                    if isinstance(info, dict) and order_id and info.get("objectID") != order_id:
+                        errors.append(
+                            f"payload.data.fileInfoLst[{index}].objectID must equal outer orderID"
+                        )
     else:
         _validate_platform_file_data(payload.get("data"), "payload.data", errors, order_id=order_id)
 
@@ -1562,20 +1572,39 @@ def _validate_device_status(value: Any, errors: list[str]) -> None:
     _typed_many(traffic, traffic_keys, str, f"{path}.netTrafficObj", errors)
 
 
-def _validate_platform_logs(value: Any, errors: list[str]) -> None:
+def _validate_platform_logs(
+    value: Any,
+    errors: list[str],
+    *,
+    order_id: str | None,
+) -> None:
     path = "payload.logInfoReqParams"
-    keys = {"logReqSeq", "logReqNote", "dataFileID", "numLogs", "logInfo"}
+    keys = {"logReqSeq", "logReqNote", "numLogs", "logInfo"}
+    if isinstance(value, dict) and "dataFileID" in value:
+        keys.add("dataFileID")
     _exact_keys(value, keys, path, errors)
     _typed_many(value, {"logReqSeq", "numLogs"}, int, path, errors)
-    _typed_many(value, {"logReqNote", "dataFileID"}, str, path, errors)
+    _typed_many(value, {"logReqNote"}, str, path, errors)
     if not isinstance(value, dict):
         return
+    if "dataFileID" in value:
+        _typed(value, "dataFileID", str, path, errors)
     rows = value.get("logInfo")
     if not isinstance(rows, list):
         errors.append(f"{path}.logInfo must be list")
         return
-    if type(value.get("numLogs")) is int and value["numLogs"] != len(rows):
-        errors.append(f"{path}.numLogs must equal logInfo length")
+    data_file_id = value.get("dataFileID")
+    if data_file_id is not None and order_id and data_file_id != order_id:
+        errors.append(f"{path}.dataFileID must equal outer orderID")
+    if rows:
+        if data_file_id:
+            errors.append(f"{path} cannot contain both dataFileID and inline logInfo")
+        if type(value.get("numLogs")) is int and value["numLogs"] != len(rows):
+            errors.append(f"{path}.numLogs must equal logInfo length in inline mode")
+    elif not isinstance(data_file_id, str) or not data_file_id:
+        errors.append(f"{path} requires inline logInfo or dataFileID")
+    elif type(value.get("numLogs")) is int and value["numLogs"] < 1:
+        errors.append(f"{path}.numLogs must be positive in file mode")
     row_keys = {
         "timeStamp", "devHash", "loginAccount", "loginIp", "devIp", "orderID", "l2Code",
         "bkItemID", "logID", "logType", "logLvl", "opCode", "opRslt", "content", "hash", "chainHash",
@@ -1586,8 +1615,209 @@ def _validate_platform_logs(value: Any, errors: list[str]) -> None:
         _exact_keys(row, row_keys, row_path, errors)
         _typed_many(row, integer_fields, int, row_path, errors)
         _typed_many(row, row_keys - integer_fields - {"content"}, str, row_path, errors)
-        if isinstance(row, dict) and not isinstance(row.get("content"), dict):
-            errors.append(f"{row_path}.content must be object")
+        if isinstance(row, dict) and not isinstance(row.get("content"), str):
+            errors.append(f"{row_path}.content must be string")
+        if isinstance(row, dict) and order_id and row.get("orderID") != order_id:
+            errors.append(f"{row_path}.orderID must equal outer orderID")
+
+
+def _validate_engine_list(value: Any, path: str, errors: list[str]) -> None:
+    _exact_keys(value, {"engNum", "engDevs"}, path, errors)
+    if not isinstance(value, dict):
+        return
+    _typed(value, "engNum", int, path, errors)
+    rows = value.get("engDevs")
+    if not isinstance(rows, list) or not rows:
+        errors.append(f"{path}.engDevs must be non-empty list")
+        return
+    if type(value.get("engNum")) is int and value["engNum"] != len(rows):
+        errors.append(f"{path}.engNum must equal engDevs length")
+    for index, row in enumerate(rows):
+        row_path = f"{path}.engDevs[{index}]"
+        _exact_keys(row, {"engHash", "engType"}, row_path, errors)
+        _typed_many(row, {"engHash"}, str, row_path, errors)
+        _typed_many(row, {"engType"}, int, row_path, errors)
+        if isinstance(row, dict):
+            if not str(row.get("engHash") or "").strip():
+                errors.append(f"{row_path}.engHash must be non-empty string")
+            eng_type = row.get("engType")
+            if type(eng_type) is int and (
+                eng_type < 0 or eng_type & ~ENGINE_TYPE_ALLOWED_BITS
+            ):
+                errors.append(f"{row_path}.engType contains unsupported protocol bits")
+
+
+def _validate_reviewed_task(interface_no: int, payload: dict[str, Any], errors: list[str]) -> None:
+    subtype = {9: 102, 10: 103, 13: 1061, 14: 1061}[interface_no]
+    expected = {"orderType", "orderSubType", "timeStamp", "sign"}
+    if interface_no in {9, 10, 13}:
+        expected.add("tskReqParams")
+    if interface_no == 9:
+        expected.add("vulLst")
+    if interface_no == 10:
+        expected.add("data")
+    if interface_no == 13:
+        expected |= {"procTime", "vulInfoRange", "engLst", "timePerd"}
+    if interface_no == 14:
+        expected |= {"vulInfoLst", "tskRspParams"}
+    if interface_no in {9, 14} and "data" in payload:
+        expected.add("data")
+    _exact_keys(payload, expected, "payload", errors)
+    if interface_no in {13, 14}:
+        _typed(payload, "orderType", int, "payload", errors)
+        _typed(payload, "orderSubType", int, "payload", errors)
+        if payload.get("orderType") != 2 or payload.get("orderSubType") not in {106, 1061, 1062, 1063}:
+            errors.append("payload route must be 2/106, 2/1061, 2/1062, or 2/1063")
+    else:
+        _validate_shared_route(payload, family="order", route_type=2, subtype=subtype, errors=errors)
+
+    if interface_no in {9, 10, 13}:
+        request = payload.get("tskReqParams")
+        request_keys = {"seq", "tskScn", "rng", "tskPriority", "tskInfo", "transID"}
+        if interface_no == 13:
+            request_keys |= {"procMethod", "astUnitNum", "tskVulNum", "tskAstNum"}
+        _exact_keys(request, request_keys, "payload.tskReqParams", errors)
+        _typed_many(request, request_keys - {"tskInfo", "transID"}, int, "payload.tskReqParams", errors)
+        _typed_many(request, {"tskInfo", "transID"}, str, "payload.tskReqParams", errors)
+    if interface_no == 9:
+        vul_list = payload.get("vulLst")
+        _exact_keys(vul_list, {"keyLst", "vulNum"}, "payload.vulLst", errors)
+        if isinstance(vul_list, dict):
+            _typed(vul_list, "vulNum", int, "payload.vulLst", errors)
+            rows = vul_list.get("keyLst")
+            if not isinstance(rows, list) or not rows:
+                errors.append("payload.vulLst.keyLst must be non-empty list")
+            else:
+                if type(vul_list.get("vulNum")) is int and vul_list["vulNum"] != len(rows):
+                    errors.append("payload.vulLst.vulNum must equal keyLst length")
+                for index, row in enumerate(rows):
+                    _validate_product_vulnerability(row, f"payload.vulLst.keyLst[{index}]", errors)
+        if "data" in payload:
+            _validate_file_data(payload["data"], "payload.data", errors, svc_types=(6,))
+    elif interface_no == 10:
+        _validate_file_data(payload.get("data"), "payload.data", errors, svc_types=(8,))
+    elif interface_no == 13:
+        _typed_many(payload, {"procTime", "vulInfoRange"}, str, "payload", errors)
+        _validate_proc_time(payload.get("procTime"), "payload.procTime", errors)
+        _validate_engine_list(payload.get("engLst"), "payload.engLst", errors)
+        time_period = payload.get("timePerd")
+        _exact_keys(time_period, {"unit", "perd"}, "payload.timePerd", errors)
+        _typed_many(time_period, {"unit", "perd"}, int, "payload.timePerd", errors)
+    else:
+        vulnerability_lists = payload.get("vulInfoLst")
+        if not isinstance(vulnerability_lists, list) or not vulnerability_lists:
+            errors.append("payload.vulInfoLst must be list")
+        else:
+            for list_index, vul_list in enumerate(vulnerability_lists):
+                list_path = f"payload.vulInfoLst[{list_index}]"
+                keys = {"vulNum", "engLst", "comVulLst"}
+                _exact_keys(vul_list, keys, list_path, errors)
+                if not isinstance(vul_list, dict):
+                    continue
+                _typed(vul_list, "vulNum", int, list_path, errors)
+                _validate_engine_list(vul_list.get("engLst"), f"{list_path}.engLst", errors)
+                if isinstance(vul_list.get("engLst"), dict) and vul_list["engLst"].get("engNum") != 1:
+                    errors.append(f"{list_path}.engLst.engNum must equal 1")
+                rows = vul_list.get("comVulLst")
+                if not isinstance(rows, list):
+                    errors.append(f"{list_path}.comVulLst must be list")
+                    continue
+                if type(vul_list.get("vulNum")) is int and vul_list["vulNum"] != len(rows):
+                    errors.append(f"{list_path}.vulNum must equal comVulLst length")
+                for row_index, row in enumerate(rows):
+                    row_path = f"{list_path}.comVulLst[{row_index}]"
+                    _exact_keys(row, {"vulID", "assetNum", "instVulLst"}, row_path, errors)
+                    if not isinstance(row, dict):
+                        continue
+                    _typed(row, "vulID", str, row_path, errors)
+                    _typed(row, "assetNum", int, row_path, errors)
+                    instances = row.get("instVulLst")
+                    if not isinstance(instances, list):
+                        errors.append(f"{row_path}.instVulLst must be list")
+                        continue
+                    if type(row.get("assetNum")) is int and row["assetNum"] != len(instances):
+                        errors.append(f"{row_path}.assetNum must equal instVulLst length")
+                    for instance_index, instance in enumerate(instances):
+                        _validate_system_vulnerability(
+                            instance,
+                            f"{row_path}.instVulLst[{instance_index}]",
+                            errors,
+                        )
+        _validate_task_response(payload.get("tskRspParams"), "payload.tskRspParams", errors)
+
+
+def _validate_reviewed_data(interface_no: int, payload: dict[str, Any], errors: list[str]) -> None:
+    subtype = {23: 308, 25: 201, 28: 301}[interface_no]
+    route_type = 1 if interface_no == 25 else 2
+    expected = {"dataType", "dataSubType", "timeStamp", "sign"}
+    expected.add({23: "engRegParams", 25: "staReqParams", 28: "registerReqParams"}[interface_no])
+    if interface_no == 23:
+        expected.add("engLst")
+    if interface_no == 25:
+        expected.add("procTime")
+    _exact_keys(payload, expected, "payload", errors)
+    _validate_shared_route(payload, family="data", route_type=route_type, subtype=subtype, errors=errors)
+    if interface_no == 23:
+        _validate_engine_list(payload.get("engLst"), "payload.engLst", errors)
+        top_devices = {
+            (row.get("engHash"), row.get("engType"))
+            for row in (payload.get("engLst") or {}).get("engDevs", [])
+            if isinstance(row, dict)
+        }
+        params = payload.get("engRegParams")
+        _exact_keys(params, {"engNum", "engRegInfo"}, "payload.engRegParams", errors)
+        if isinstance(params, dict):
+            _typed(params, "engNum", int, "payload.engRegParams", errors)
+            rows = params.get("engRegInfo")
+            if not isinstance(rows, list) or not rows:
+                errors.append("payload.engRegParams.engRegInfo must be non-empty list")
+            else:
+                if type(params.get("engNum")) is int and params["engNum"] != len(rows):
+                    errors.append("payload.engRegParams.engNum must equal engRegInfo length")
+                keys = {"vendor", "engName", "engVer", "devIp", "rngIp", "plugInsVer", "timeStamp", "engVulNum", "plugIns", "pocs", "exps", "reqAct", "status", "engDev"}
+                for index, row in enumerate(rows):
+                    row_path = f"payload.engRegParams.engRegInfo[{index}]"
+                    _exact_keys(row, keys, row_path, errors)
+                    _typed_many(row, {"vendor", "engName", "engVer", "devIp", "rngIp", "plugInsVer", "timeStamp"}, str, row_path, errors)
+                    _typed_many(row, {"engVulNum", "plugIns", "pocs", "exps", "reqAct", "status"}, int, row_path, errors)
+                    if isinstance(row, dict):
+                        _exact_keys(row.get("engDev"), {"engHash", "engType"}, f"{row_path}.engDev", errors)
+                        _typed_many(row.get("engDev"), {"engHash"}, str, f"{row_path}.engDev", errors)
+                        _typed_many(row.get("engDev"), {"engType"}, int, f"{row_path}.engDev", errors)
+                        for field in {"engVulNum", "plugIns", "pocs", "exps"}:
+                            if type(row.get(field)) is int and row[field] < 0:
+                                errors.append(f"{row_path}.{field} must be non-negative")
+                        for field in {"reqAct", "status"}:
+                            if type(row.get(field)) is int and row[field] not in {-1, 0}:
+                                errors.append(f"{row_path}.{field} must be -1 or 0")
+                        engine = row.get("engDev")
+                        if isinstance(engine, dict):
+                            eng_type = engine.get("engType")
+                            if type(eng_type) is int and (
+                                eng_type < 0 or eng_type & ~ENGINE_TYPE_ALLOWED_BITS
+                            ):
+                                errors.append(
+                                    f"{row_path}.engDev.engType contains unsupported protocol bits"
+                                )
+                            if (engine.get("engHash"), eng_type) not in top_devices:
+                                errors.append(f"{row_path}.engDev must match payload.engLst")
+    elif interface_no == 25:
+        _typed(payload, "procTime", str, "payload", errors)
+        _validate_proc_time(payload.get("procTime"), "payload.procTime", errors)
+        params = payload.get("staReqParams")
+        keys = {"workOrderDataObj", "numVulInfo", "astNum", "vulNum", "pwdNum", "prcAstNum", "exRsnLst", "exRsnNumLst"}
+        _exact_keys(params, keys, "payload.staReqParams", errors)
+        _typed_many(params, {"numVulInfo", "astNum", "vulNum", "pwdNum", "prcAstNum"}, int, "payload.staReqParams", errors)
+        if isinstance(params, dict):
+            work_order = params.get("workOrderDataObj")
+            _exact_keys(work_order, {"localTotal"}, "payload.staReqParams.workOrderDataObj", errors)
+            _typed_many(work_order, {"localTotal"}, str, "payload.staReqParams.workOrderDataObj", errors)
+            _fixed_int_list(params.get("exRsnLst"), 8, "payload.staReqParams.exRsnLst", errors)
+            _fixed_int_list(params.get("exRsnNumLst"), 8, "payload.staReqParams.exRsnNumLst", errors)
+    else:
+        params = payload.get("registerReqParams")
+        _exact_keys(params, {"devHash", "devIp"}, "payload.registerReqParams", errors)
+        _typed_many(params, {"devHash", "devIp"}, str, "payload.registerReqParams", errors)
 
 
 def _validate_shared(
@@ -1599,6 +1829,10 @@ def _validate_shared(
 ) -> None:
     if interface_no in {5, 6, 7, 8}:
         _validate_shared_work_orders(interface_no, payload, errors)
+    elif interface_no in {9, 10, 13, 14}:
+        _validate_reviewed_task(interface_no, payload, errors)
+    elif interface_no in {23, 25, 28}:
+        _validate_reviewed_data(interface_no, payload, errors)
     else:
         _validate_shared_data(interface_no, payload, errors, order_id=order_id)
 

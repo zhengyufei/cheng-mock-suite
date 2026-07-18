@@ -10,8 +10,13 @@ from mock_ministry.mocks.protocol_ministry_platform.contracts import (
     BACKEND_FILE_PATH,
     BACKEND_RECEIVE_PATH,
     LEGACY_PLATFORM_FILE_UPLOAD_PATH,
+    PLATFORM_CANONICAL_FILE_PATH,
+    PLATFORM_DEVICE_PATH,
     PLATFORM_FILE_PATH,
+    PLATFORM_MESSAGE_PATHS,
+    PLATFORM_ORDER_PATH,
     PLATFORM_RECEIVE_PATH,
+    PLATFORM_STAT_PATH,
 )
 from mock_ministry.mocks.protocol_ministry_platform.envelope import (
     inspect_file_request,
@@ -26,7 +31,11 @@ def test_protocol_mock_paths_cover_current_feature_interfaces() -> None:
     assert BACKEND_RECEIVE_PATH == "/api/ministry/receive"
     assert BACKEND_FILE_PATH == "/api/ministry/file"
     assert PLATFORM_RECEIVE_PATH == "/ministry/receive"
+    assert PLATFORM_ORDER_PATH == "/provinceAPI/provisionOrderMiit"
+    assert PLATFORM_DEVICE_PATH == "/provinceAPI/deviceManagementMiit"
+    assert PLATFORM_STAT_PATH == "/provinceAPI/businessStatistics"
     assert PLATFORM_FILE_PATH == "/ministry/file"
+    assert PLATFORM_CANONICAL_FILE_PATH == "/provinceAPI/fileMiit"
     assert LEGACY_PLATFORM_FILE_UPLOAD_PATH == "/api/v1/platformFileUpload"
 
 
@@ -210,7 +219,8 @@ def test_file_inspector_covers_protocol_and_current_legacy_file_paths() -> None:
         assert observation.endpoint_role in {"platform_file", "legacy_platform_file"}
 
 
-def test_server_records_protocol_metadata_for_receive_post(tmp_path) -> None:
+@pytest.mark.parametrize("platform_path", sorted(PLATFORM_MESSAGE_PATHS))
+def test_server_records_protocol_metadata_for_receive_post(tmp_path, platform_path: str) -> None:
     recorder = FileRecorder(base_dir=tmp_path, run_id="server")
     server = create_server(host="127.0.0.1", port=0, recorder=recorder)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -224,11 +234,17 @@ def test_server_records_protocol_metadata_for_receive_post(tmp_path) -> None:
                 "orgCode": "MIIT",
                 "ispCode": "CMCC",
                 "ctxCode": 0,
-                "reqMsgCnt": json.dumps({"orderType": 2, "orderSubType": 301}),
+                "reqMsgCnt": json.dumps({
+                    "dataType": 2,
+                    "dataSubType": 301,
+                    "timeStamp": "1752500000",
+                    "sign": "a" * 64,
+                    "registerReqParams": {"devHash": "a" * 32, "devIp": "10.8.100.7"},
+                }),
             }
         ).encode("utf-8")
         request = Request(
-            f"http://{host}:{port}{PLATFORM_RECEIVE_PATH}",
+            f"http://{host}:{port}{platform_path}",
             data=body,
             headers={"Content-Type": "application/json"},
             method="POST",
@@ -240,7 +256,7 @@ def test_server_records_protocol_metadata_for_receive_post(tmp_path) -> None:
 
         assert payload["statusCode"] == 0
         record = json.loads(recorder.path.read_text(encoding="utf-8").strip())
-        assert record["path"] == PLATFORM_RECEIVE_PATH
+        assert record["path"] == platform_path
         assert record["meta"]["mock"] == "protocol-ministry-platform"
         assert record["meta"]["endpoint_role"] == "platform_receive"
         assert record["meta"]["protocol"]["orderID"] == "2-301-2026070300000000001"

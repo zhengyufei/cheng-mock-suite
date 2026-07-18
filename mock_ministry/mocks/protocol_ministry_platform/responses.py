@@ -62,6 +62,7 @@ def build_protocol_response(
     injected = {
         "interface11_failure": (104, 200, 1, "configured interface 11 failure"),
         "interface12_failure": (105, 200, 1, "configured interface 12 failure"),
+        "business201_failure": (201, 200, 1, "configured interface 201 failure"),
         "business202_failure": (202, 200, 1, "configured interface 202 failure"),
         "business203_failure": (203, 200, 1, "configured interface 203 failure"),
         "timeout": (None, 504, 504, "configured timeout"),
@@ -122,7 +123,7 @@ def _response_plaintext(
         }
     plaintext["timeStamp"] = str(int(time.time()))
     plaintext["sign"] = generate_response_sign(outer, crypto.keys.province_public_key)
-    if observation.sub_type in {104, 105}:
+    if observation.sub_type in {102, 103, 104, 105}:
         plaintext["tskRspParams"] = {
             "tskProcIndication": 100,
             "logNum": -1,
@@ -132,6 +133,27 @@ def _response_plaintext(
             "prcAstNum": 1,
             "exRsnLst": [-1] * 8,
             "exRsnNumLst": [-1] * 8,
+        }
+    elif observation.sub_type == 308:
+        engine_hash = "a" * 32
+        if isinstance(observation.inner, dict):
+            rows = observation.inner.get("engLst", {}).get("engDevs", [])
+            if rows and isinstance(rows[0], dict):
+                engine_hash = rows[0].get("engHash", engine_hash)
+        plaintext["engRegParams"] = {
+            "engNum": 1,
+            "engRegInfo": [{"engHash": engine_hash, "regRslt": 0}],
+        }
+    elif observation.sub_type == 301:
+        request = observation.inner.get("registerReqParams", {}) if isinstance(observation.inner, dict) else {}
+        plaintext["registerResParams"] = {
+            "devHash": request.get("devHash", "a" * 32),
+            "devIp": request.get("devIp", "127.0.0.1"),
+            "devType": "data_platform",
+            "status": "0",
+            "curVer": "mock-1.0",
+            "vulVer": "mock-1.0",
+            "updateTime": plaintext["timeStamp"],
         }
     return plaintext
 

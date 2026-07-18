@@ -5,7 +5,11 @@
     "description": "本系统主动推送到部侧监管平台，由此 mock 接收。",
     "paths": [
       "/ministry/receive",
+      "/provinceAPI/provisionOrderMiit",
+      "/provinceAPI/deviceManagementMiit",
+      "/provinceAPI/businessStatistics",
       "/ministry/file",
+      "/provinceAPI/fileMiit",
       "/api/v1/platformFileUpload"
     ],
     "subtypes": {
@@ -13,6 +17,10 @@
       "308": "安全设备注册",
       "104": "产品漏洞上传",
       "105": "口令字典上传",
+      "106": "跨级联动任务回传",
+      "1061": "跨级联动排查任务回传",
+      "1062": "跨级联动验证任务回传",
+      "1063": "跨级联动核验任务回传",
       "21": "产品漏洞排查验证工单回传",
       "22": "产品漏洞修复验证工单回传",
       "41": "系统漏洞排查工单回传",
@@ -43,9 +51,7 @@
       "20": "test_data_307_tst_type_4",
       "21": "test_data_307_tst_type_5",
       "22": "test_data_307_tst_type_6",
-      "23": "device_register_308",
       "24": "device_cmd_309",
-      "25": "command_stat_201",
       "28": "platform_register_301",
       "29": "platform_event_303",
       "30": "platform_status_304",
@@ -83,8 +89,6 @@
       "test_data_307_tst_type_4",
       "test_data_307_tst_type_5",
       "test_data_307_tst_type_6",
-      "device_register_308",
-      "command_stat_201",
       "platform_register_301",
       "file_103",
       "unknown_subtype_399"
@@ -95,12 +99,28 @@
     ],
     "generated_fixture_cases": {
       "3": "build_work_order_request(31..34)",
+      "9": "build_shared_fixture(9)",
+      "10": "build_shared_fixture(10)",
+      "13": "build_shared_fixture(13)",
       "17": "build_additional_fixture(17)",
       "18": "build_additional_fixture(18)",
       "19": "build_additional_fixture(19)",
       "21": "build_additional_fixture(21)",
       "22": "build_additional_fixture(22)"
     }
+  },
+  "interface_directions": {
+    "1": "ministry_to_province",
+    "2": "province_to_ministry",
+    "9": "ministry_to_province",
+    "10": "ministry_to_province",
+    "13": "ministry_to_province",
+    "14": "province_to_ministry",
+    "23": "province_to_ministry",
+    "25": "province_to_ministry",
+    "28": "bidirectional",
+    "31": "province_to_ministry",
+    "33": "bidirectional"
   },
   "additional_interfaces": {
     "response_subtype_mapping": {

@@ -14,18 +14,23 @@
     "logInfoReqParams": {
       "logReqSeq": 1,
       "logReqNote": "mock platform log",
-      "dataFileID": "2-305-2026070500000000001",
       "numLogs": 1,
       "logInfo": [
         {
           "timeStamp": "1783274400",
           "devHash": "mock-platform-001",
           "loginAccount": "system",
+          "loginIp": "10.8.100.1",
+          "devIp": "10.8.100.7",
+          "orderID": "2-305-2026070500000000001",
+          "l2Code": 0,
+          "bkItemID": "BK-1",
           "logID": "LOG00000000000000000000000000001",
           "logType": 1020,
           "logLvl": 3,
           "opCode": 1,
           "opRslt": 0,
+          "content": "{\"business\":\"retained\"}",
           "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
           "chainHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
         }

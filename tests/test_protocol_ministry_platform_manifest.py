@@ -22,10 +22,14 @@ def test_protocol_platform_manifest_lists_feature_interface_coverage() -> None:
     assert data["mock"] == "protocol-ministry-platform"
     assert data["receive_from_backend"]["paths"] == [
         "/ministry/receive",
+        "/provinceAPI/provisionOrderMiit",
+        "/provinceAPI/deviceManagementMiit",
+        "/provinceAPI/businessStatistics",
         "/ministry/file",
+        "/provinceAPI/fileMiit",
         "/api/v1/platformFileUpload",
     ]
-    assert {"301", "308", "104", "105", "201", "202", "203"} <= set(data["receive_from_backend"]["subtypes"])
+    assert {"106", "1061", "1062", "1063", "201", "301", "308", "104", "105", "202", "203"} <= set(data["receive_from_backend"]["subtypes"])
     assert data["send_to_backend"]["paths"] == ["/api/ministry/receive", "/api/ministry/file"]
     expected_cases = {
         "5",
@@ -40,9 +44,7 @@ def test_protocol_platform_manifest_lists_feature_interface_coverage() -> None:
         "20",
         "21",
         "22",
-        "23",
         "24",
-        "25",
         "28",
         "29",
         "30",
@@ -74,8 +76,6 @@ def test_protocol_platform_manifest_lists_feature_interface_coverage() -> None:
         "test_data_307_tst_type_4",
         "test_data_307_tst_type_5",
         "test_data_307_tst_type_6",
-        "device_register_308",
-        "command_stat_201",
         "platform_register_301",
         "file_103",
         "unknown_subtype_399",
@@ -84,6 +84,19 @@ def test_protocol_platform_manifest_lists_feature_interface_coverage() -> None:
         "policy_302",
         "prod_vul_workorder_5_request",
     ]
+    assert data["interface_directions"] == {
+        "1": "ministry_to_province",
+        "2": "province_to_ministry",
+        "9": "ministry_to_province",
+        "10": "ministry_to_province",
+        "13": "ministry_to_province",
+        "14": "province_to_ministry",
+        "23": "province_to_ministry",
+        "25": "province_to_ministry",
+        "28": "bidirectional",
+        "31": "province_to_ministry",
+        "33": "bidirectional",
+    }
     assert data["additional_interfaces"]["response_subtype_mapping"] == {
         "31": 41,
         "32": 42,

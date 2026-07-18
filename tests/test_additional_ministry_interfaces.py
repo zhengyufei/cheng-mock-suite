@@ -34,9 +34,14 @@ def test_protocol_catalog_centralizes_additional_interface_routes() -> None:
     assert contracts.FILE_REQUIRED_CTX_CODES == frozenset({2, 5, 6})
     assert contracts.ADDITIONAL_INTERFACE_DIRECTIONS[26] == "province_to_ministry"
     assert contracts.ADDITIONAL_INTERFACE_DIRECTIONS[27] == "province_to_ministry"
-    assert {"interface11_failure", "business203_failure", "timeout", "duplicate", "file_partial"} < set(
-        contracts.SUPPORTED_SCENARIOS
-    )
+    assert {
+        "interface11_failure",
+        "business201_failure",
+        "business203_failure",
+        "timeout",
+        "duplicate",
+        "file_partial",
+    } < set(contracts.SUPPORTED_SCENARIOS)
 
 
 def test_manifest_does_not_misclassify_202_203_as_ministry_to_province() -> None:
@@ -920,6 +925,7 @@ def test_file_response_scenarios_return_serialized_status_text(
     [
         (11, "interface11_failure", 200, 1),
         (12, "interface12_failure", 200, 1),
+        (25, "business201_failure", 200, 1),
         (26, "business202_failure", 200, 1),
         (27, "business203_failure", 200, 1),
         (11, "timeout", 504, 504),
@@ -928,7 +934,13 @@ def test_file_response_scenarios_return_serialized_status_text(
 )
 def test_business_failure_injection(interface_no: int, scenario: str, http_status: int, status_code: int) -> None:
     _, fixtures, _, envelope, responses = _modules()
-    fixture = fixtures.build_additional_fixture(interface_no, "2026071400000000010", ctx_code=0)
+    if interface_no == 25:
+        shared_fixtures = importlib.import_module(
+            "mock_ministry.mocks.protocol_ministry_platform.shared_fixtures"
+        )
+        fixture = shared_fixtures.build_shared_fixture(interface_no, "2026071400000000010")
+    else:
+        fixture = fixtures.build_additional_fixture(interface_no, "2026071400000000010", ctx_code=0)
     outer = {key: value for key, value in fixture.items() if key in {"orderID", "orgCode", "ispCode", "ctxCode"}}
     outer["reqMsgCnt"] = json.dumps(fixture["inner"], separators=(",", ":"))
     observation = envelope.inspect_receive_body(

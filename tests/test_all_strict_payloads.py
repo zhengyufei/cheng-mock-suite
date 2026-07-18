@@ -174,7 +174,7 @@ def test_warning_callback_file_is_optional_and_uses_literal_svc_type_12() -> Non
     assert any("svcType" in error for error in errors), errors
 
 
-@pytest.mark.parametrize("svc_types", [(), (11,), (11, 13)])
+@pytest.mark.parametrize("svc_types", [(), (11,), (11, 13), (13, 11)])
 def test_platform_log_file_data_uses_literal_conditional_sequence(svc_types: tuple[int, ...]) -> None:
     inner = deepcopy(_fixture(31)["inner"])
     inner.pop("data", None)
@@ -197,7 +197,37 @@ def test_platform_log_file_data_uses_literal_conditional_sequence(svc_types: tup
     assert validate_business_payload(31, inner) == []
 
 
-@pytest.mark.parametrize("svc_types", [(13,), (11, 12), (13, 11)])
+def test_platform_log_file_backed_mode_uses_data_file_id_without_inline_rows() -> None:
+    inner = deepcopy(_fixture(31)["inner"])
+    params = inner["logInfoReqParams"]
+    params["dataFileID"] = f"2-305-{SEQUENCE}"
+    params["numLogs"] = 1
+    params["logInfo"] = []
+    inner["data"] = {
+        "numFiles": 1,
+        "numTgzs": 1,
+        "fileInfoLst": [{
+            "name": "platform-logs.json",
+            "dataType": "json",
+            "objectID": f"2-305-{SEQUENCE}",
+            "svcType": 11,
+            "reserved": "",
+        }],
+    }
+
+    assert validate_business_payload(31, inner) == []
+
+
+def test_platform_log_rejects_mixed_inline_and_file_backed_modes() -> None:
+    inner = deepcopy(_fixture(31)["inner"])
+    inner["logInfoReqParams"]["dataFileID"] = f"2-305-{SEQUENCE}"
+
+    errors = validate_business_payload(31, inner)
+
+    assert any("both dataFileID and inline logInfo" in error for error in errors), errors
+
+
+@pytest.mark.parametrize("svc_types", [(13,), (11, 12)])
 def test_platform_log_rejects_non_protocol_file_sequences(svc_types: tuple[int, ...]) -> None:
     inner = deepcopy(_fixture(31)["inner"])
     inner["data"] = {

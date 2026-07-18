@@ -25,7 +25,13 @@ def test_server_accepts_receive_post(tmp_path) -> None:
                 "orgCode": "MIIT",
                 "ispCode": "CMCC",
                 "ctxCode": 0,
-                "reqMsgCnt": json.dumps({"orderType": 2, "orderSubType": 301}),
+                "reqMsgCnt": json.dumps({
+                    "dataType": 2,
+                    "dataSubType": 301,
+                    "timeStamp": "1752500000",
+                    "sign": "a" * 64,
+                    "registerReqParams": {"devHash": "a" * 32, "devIp": "10.8.100.7"},
+                }),
             }
         ).encode("utf-8")
         request = Request(
@@ -49,7 +55,7 @@ def test_server_accepts_receive_post(tmp_path) -> None:
         server.server_close()
 
 
-def test_server_refreshes_ministry_access_token_on_receive_path(tmp_path) -> None:
+def test_server_refreshes_ministry_access_token_on_protocol_path(tmp_path) -> None:
     recorder = FileRecorder(base_dir=tmp_path, run_id="auth")
     server = create_server(host="127.0.0.1", port=0, recorder=recorder)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -58,12 +64,12 @@ def test_server_refreshes_ministry_access_token_on_receive_path(tmp_path) -> Non
     try:
         host, port = server.server_address
         request = Request(
-            f"http://{host}:{port}/ministry/receive",
+            f"http://{host}:{port}/provisionOrder",
             data=json.dumps(
                 {
                     "orgCode": "792713",
                     "ispCode": "CM",
-                    "publicKey": "encrypted-device-hash",
+                    "public_key": "encrypted-device-hash",
                     "ip": "127.0.0.1",
                     "domain": "http://127.0.0.1:8000",
                 }
@@ -77,8 +83,9 @@ def test_server_refreshes_ministry_access_token_on_receive_path(tmp_path) -> Non
             assert response.status == 200
 
         assert payload == {
-            "accessToken": "mock-ministry-access-token",
-            "expiresIn": 3600,
+            "access_token": "mock-ministry-access-token",
+            "expires_in": 3600,
+            "refresh_token": "mock-ministry-refresh-token",
         }
     finally:
         server.shutdown()

@@ -13,8 +13,10 @@ from typing import Any
 from .contracts import (
     FILE_METADATA_KEYS,
     LEGACY_PLATFORM_FILE_UPLOAD_PATH,
+    PLATFORM_CANONICAL_FILE_PATH,
     PLATFORM_FILE_PATH,
     PLATFORM_RECEIVE_SUBTYPE_INTERFACES,
+    PROTOCOL_FILE_MAX_CHUNK_BYTES,
     TEST_DATA_SUBTYPE,
     TEST_TYPE_INTERFACES,
 )
@@ -33,7 +35,7 @@ _ARCHIVE_NAME_RE = re.compile(
 _ENCRYPT_HEADERS = ("X-Enc-Key", "X-Enc-Key-G", "X-Enc-Nonce", "X-Enc-Auth-Tag", "X-Enc-Auth-Tag-File")
 _MAX_MULTIPART_PARTS = 32
 _MAX_MULTIPART_FIELD_BYTES = 64 * 1024
-_MAX_FILE_CHUNK_BYTES = 8 * 1024 * 1024
+_MAX_FILE_CHUNK_BYTES = PROTOCOL_FILE_MAX_CHUNK_BYTES
 
 
 @dataclass
@@ -355,7 +357,7 @@ def inspect_file_request(
 ) -> ProtocolObservation:
     """Inspect file-upload style requests accepted by the platform mock."""
 
-    if path == PLATFORM_FILE_PATH:
+    if path in {PLATFORM_FILE_PATH, PLATFORM_CANONICAL_FILE_PATH}:
         endpoint_role = "platform_file"
     elif path == LEGACY_PLATFORM_FILE_UPLOAD_PATH:
         endpoint_role = "legacy_platform_file"

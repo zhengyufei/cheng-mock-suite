@@ -66,8 +66,59 @@ def _system_vulnerability(sequence: str) -> dict[str, Any]:
     }
 
 
+def _product_vulnerability(sequence: str) -> dict[str, Any]:
+    return {
+        "vulName": "protocol product vulnerability",
+        "vulID": f"MVM-{sequence}",
+        "lclID": "-1",
+        "bslDate": "2026-07-18",
+        "orgVulID": "CVE-2026-0001",
+        "numOrg": 1,
+        "pubOrgInfo": [{"pubOrgID": "A02", "pubVulID": "CVE-2026-0001", "pubDate": "2026-07-18", "pubVulVal": 7.5}],
+        "vulStat": 1,
+        "bslVulVal": 7.5,
+        "vulType": 24,
+        "vulLevel": 4,
+        "assetType": "cpe:2.3:a:example:server:1.0:*:*:*:*:*:*:*",
+        "numAfftCmpt": 1,
+        "afftCmptInfo": [{"cmptVendor": "example", "cmptClass": 2, "cmptName": "server", "cmptVer": "1.0"}],
+        "vulDesc": "protocol fixture",
+        "vulPocDesc": "protocol fixture poc",
+        "expPath": 1,
+        "remed": "upgrade",
+        "fixLnk": "https://example.invalid/fix",
+        "srcMethod": 1024,
+        "rsvdDesc": "",
+    }
+
+
+def _task_request(sequence: str, **extra: Any) -> dict[str, Any]:
+    return {
+        "seq": 1,
+        "tskScn": 1,
+        "rng": 1,
+        "tskPriority": 1,
+        "tskInfo": "protocol task",
+        "transID": sequence,
+        **extra,
+    }
+
+
+def _task_response() -> dict[str, Any]:
+    return {
+        "tskProcIndication": 100,
+        "prcVulNum": -1,
+        "prcPwNum": -1,
+        "toPrcAstNum": 1,
+        "prcAstNum": 1,
+        "exRsnLst": [-1] * 8,
+        "exRsnNumLst": [-1] * 8,
+        "logNum": -1,
+    }
+
+
 def _base(route_type: int, subtype: int) -> dict[str, Any]:
-    prefix = "order" if subtype in {11, 12, 21, 22, 101} else "data"
+    prefix = "order" if subtype in {11, 12, 21, 22, 101, 102, 103, 106, 1061, 1062, 1063} else "data"
     return {
         f"{prefix}Type": route_type,
         f"{prefix}SubType": subtype,
@@ -84,8 +135,15 @@ def build_shared_fixture(interface_no: int, sequence: str) -> dict[str, Any]:
         6: _interface_6,
         7: _interface_7,
         8: _interface_8,
+        9: _interface_9,
+        10: _interface_10,
+        13: _interface_13,
+        14: _interface_14,
         15: _interface_15,
+        23: _interface_23,
         24: _interface_24,
+        25: _interface_25,
+        28: _interface_28,
         29: _interface_29,
         30: _interface_30,
         31: _interface_31,
@@ -100,7 +158,7 @@ def build_shared_fixture(interface_no: int, sequence: str) -> dict[str, Any]:
         "orderID": order_id,
         "orgCode": "150000",
         "ispCode": "CM",
-        "ctxCode": 0 if interface_no in {15, 24} else 1,
+        "ctxCode": 0 if interface_no in {15, 24, 28} else 1,
         "inner": inner,
     }
 
@@ -187,6 +245,115 @@ def _interface_8(sequence: str):
         "data": _file_data(12),
     }
     return f"2-101-{sequence}", inner
+
+
+def _interface_9(sequence: str):
+    inner = {
+        **_base(2, 102),
+        "tskReqParams": _task_request(sequence),
+        "vulLst": {"keyLst": [_product_vulnerability(sequence)], "vulNum": 1},
+        "data": _file_data(6),
+    }
+    return f"2-102-{sequence}", inner
+
+
+def _interface_10(sequence: str):
+    inner = {
+        **_base(2, 103),
+        "tskReqParams": _task_request(sequence, tskScn=0),
+        "data": _file_data(8),
+    }
+    return f"2-103-{sequence}", inner
+
+
+def _interface_13(sequence: str):
+    inner = {
+        **_base(2, 1061),
+        "procTime": "20260717000000-20260718000000",
+        "vulInfoRange": "KHZ1bEtleXMudnVsTmFtZSBsaWtlICclQ1ZFJScp",
+        "tskReqParams": _task_request(
+            sequence,
+            procMethod=1080,
+            astUnitNum=1,
+            tskVulNum=1,
+            tskAstNum=1,
+        ),
+        "engLst": {"engNum": 1, "engDevs": [{"engHash": "a" * 32, "engType": 1}]},
+        "timePerd": {"unit": 1, "perd": 1},
+    }
+    return f"2-1061-{sequence}", inner
+
+
+def _interface_14(sequence: str):
+    inner = {
+        **_base(2, 1061),
+        "vulInfoLst": [
+            {
+                "vulNum": 0,
+                "engLst": {
+                    "engNum": 1,
+                    "engDevs": [{"engHash": "a" * 32, "engType": 1}],
+                },
+                "comVulLst": [],
+            }
+        ],
+        "tskRspParams": _task_response(),
+    }
+    return f"2-1061-{sequence}", inner
+
+
+def _interface_23(sequence: str):
+    engine = {"engHash": "a" * 32, "engType": 1}
+    inner = {
+        **_base(2, 308),
+        "engLst": {"engNum": 1, "engDevs": [engine]},
+        "engRegParams": {
+            "engNum": 1,
+            "engRegInfo": [{
+                "vendor": "protocol vendor",
+                "engName": "protocol engine",
+                "engVer": "1.0",
+                "devIp": "10.8.100.7",
+                "rngIp": "10.8.100.0/24",
+                "plugInsVer": "1.0",
+                "timeStamp": "1752500000",
+                "engVulNum": 1,
+                "plugIns": 1,
+                "pocs": 1,
+                "exps": 1,
+                "reqAct": 0,
+                "status": 0,
+                "engDev": engine,
+            }],
+        },
+    }
+    return f"2-308-{sequence}", inner
+
+
+def _interface_25(sequence: str):
+    inner = {
+        **_base(1, 201),
+        "procTime": "20260717000000-20260718000000",
+        "staReqParams": {
+            "workOrderDataObj": {"localTotal": "1-0:1"},
+            "numVulInfo": -1,
+            "astNum": -1,
+            "vulNum": -1,
+            "pwdNum": -1,
+            "prcAstNum": -1,
+            "exRsnLst": [-1] * 8,
+            "exRsnNumLst": [0] * 8,
+        },
+    }
+    return f"1-201-{sequence}", inner
+
+
+def _interface_28(sequence: str):
+    inner = {
+        **_base(2, 301),
+        "registerReqParams": {"devHash": "a" * 32, "devIp": "10.8.100.7"},
+    }
+    return f"2-301-{sequence}", inner
 
 
 def _interface_15(sequence: str):
@@ -289,7 +456,6 @@ def _interface_31(sequence: str):
         "logInfoReqParams": {
             "logReqSeq": 1,
             "logReqNote": "protocol log upload",
-            "dataFileID": f"2-305-{sequence}",
             "numLogs": 1,
             "logInfo": [
                 {
@@ -306,13 +472,12 @@ def _interface_31(sequence: str):
                     "logLvl": 1,
                     "opCode": 1,
                     "opRslt": 1,
-                    "content": {"business": "retained"},
+                    "content": '{"business":"retained"}',
                     "hash": "b" * 64,
                     "chainHash": "c" * 64,
                 }
             ],
         },
-        "data": _file_data(11, 13),
     }
     return f"2-305-{sequence}", inner
 
