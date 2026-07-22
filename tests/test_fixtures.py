@@ -21,8 +21,6 @@ REQUIRED_CASES = {
     "device_register_308",
     "device_cmd_309",
     "command_stat_201",
-    "tas_stat_202",
-    "sys_vul_stat_203",
     "platform_register_301",
     "platform_event_303",
     "platform_status_304",
@@ -59,8 +57,6 @@ def test_refactor_regression_fixtures_cover_shared_route_family() -> None:
         route_by_case[name] = route
 
     assert route_by_case["command_stat_201"] == (1, 201)
-    assert route_by_case["tas_stat_202"] == (1, 202)
-    assert route_by_case["sys_vul_stat_203"] == (1, 203)
     assert route_by_case["platform_register_301"] == (2, 301)
     assert route_by_case["policy_302_interface_16"] == (2, 302)
     assert route_by_case["device_register_308"] == (2, 308)

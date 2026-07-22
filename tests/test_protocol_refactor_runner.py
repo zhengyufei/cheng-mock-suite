@@ -528,7 +528,7 @@ def test_runner_cli_default_suite_uses_manifest_representative_cases(tmp_path) -
 
     def response_for_path(path: str) -> dict:
         order_id = (
-            "2-103-2026070300000000001"
+            "0-0-2026070300000000001"
             if path == "/api/ministry/file"
             else "2-302-2026070500000000001"
         )
@@ -584,7 +584,7 @@ def test_contract_runner_rejects_file_case_missing_file_auth_tag(tmp_path) -> No
     FakeBackendHandler.received_paths = []
     _set_backend_response(
         {
-            "orderID": "2-103-2026070300000000001",
+            "orderID": "0-0-2026070300000000001",
             "statusCode": 0,
             "statusText": "fake backend accepted",
             "rspMsgCnt": "cipher",
@@ -627,14 +627,12 @@ def test_contract_runner_rejects_file_case_missing_file_auth_tag(tmp_path) -> No
 
 def test_contract_runner_sends_file_case_to_ministry_file_endpoint(tmp_path) -> None:
     FakeBackendHandler.received_paths = []
-    _set_backend_response(
-        {
-            "orderID": "2-103-2026070300000000001",
-            "statusCode": 0,
-            "statusText": "fake backend accepted",
-            "rspMsgCnt": "cipher",
-        }
-    )
+    _set_backend_response({
+        "orderID": "0-0-2026070300000000001",
+        "statusCode": 0,
+        "statusText": "fake backend accepted",
+        "rspMsgCnt": "cipher",
+    })
     backend = ThreadingHTTPServer(("127.0.0.1", 0), FakeBackendHandler)
     thread = threading.Thread(target=backend.serve_forever, daemon=True)
     thread.start()

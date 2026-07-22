@@ -77,6 +77,7 @@ def test_negative_mutations_cover_feature_interface_groups() -> None:
         "invalid_status_params",
         "empty_logInfo",
         "invalid_log_params",
+        "mixed_log_delivery_modes",
         "missing_log_hash",
         "invalid_log_hash",
         "invalid_log_id",

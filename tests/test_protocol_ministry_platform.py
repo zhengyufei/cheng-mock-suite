@@ -10,8 +10,13 @@ from mock_ministry.mocks.protocol_ministry_platform.contracts import (
     BACKEND_FILE_PATH,
     BACKEND_RECEIVE_PATH,
     LEGACY_PLATFORM_FILE_UPLOAD_PATH,
+    PLATFORM_CANONICAL_FILE_PATH,
+    PLATFORM_DEVICE_PATH,
     PLATFORM_FILE_PATH,
+    PLATFORM_MESSAGE_PATHS,
+    PLATFORM_ORDER_PATH,
     PLATFORM_RECEIVE_PATH,
+    PLATFORM_STAT_PATH,
 )
 from mock_ministry.mocks.protocol_ministry_platform.envelope import (
     inspect_file_request,
@@ -26,7 +31,11 @@ def test_protocol_mock_paths_cover_current_feature_interfaces() -> None:
     assert BACKEND_RECEIVE_PATH == "/api/ministry/receive"
     assert BACKEND_FILE_PATH == "/api/ministry/file"
     assert PLATFORM_RECEIVE_PATH == "/ministry/receive"
+    assert PLATFORM_ORDER_PATH == "/provinceAPI/provisionOrderMiit"
+    assert PLATFORM_DEVICE_PATH == "/provinceAPI/deviceManagementMiit"
+    assert PLATFORM_STAT_PATH == "/provinceAPI/businessStatistics"
     assert PLATFORM_FILE_PATH == "/ministry/file"
+    assert PLATFORM_CANONICAL_FILE_PATH == "/provinceAPI/fileMiit"
     assert LEGACY_PLATFORM_FILE_UPLOAD_PATH == "/api/v1/platformFileUpload"
 
 
@@ -57,6 +66,52 @@ def test_receive_inspector_extracts_data_subtype_from_plain_inner_message() -> N
 
 
 @pytest.mark.parametrize(
+    ("change", "fragment"),
+    [
+        (lambda body: body.update(extra="forbidden"), "unexpected outer keys"),
+        (lambda body: body.update(ctxCode="0"), "ctxCode must be int"),
+        (lambda body: body.update(orderID="2-302-short"), "19 digits"),
+    ],
+)
+def test_receive_inspector_requires_exact_typed_outer_envelope(change, fragment: str) -> None:
+    body = {
+        "orderID": "2-302-2026070300000000001",
+        "orgCode": "MIIT",
+        "ispCode": "CMCC",
+        "ctxCode": 0,
+        "reqMsgCnt": json.dumps({"dataType": 2, "dataSubType": 302}),
+    }
+    change(body)
+
+    observation = inspect_receive_body(
+        raw_body=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert not observation.is_valid
+    assert any(fragment in error for error in observation.errors)
+
+
+def test_receive_inspector_uses_runner_specific_expected_org_code(monkeypatch) -> None:
+    monkeypatch.setenv("CHENG_MOCK_EXPECTED_ORG_CODE", "654321")
+    body = {
+        "orderID": "2-302-2026070300000000001",
+        "orgCode": "150000",
+        "ispCode": "CM",
+        "ctxCode": 0,
+        "reqMsgCnt": json.dumps({"dataType": 2, "dataSubType": 302}),
+    }
+
+    observation = inspect_receive_body(
+        raw_body=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert not observation.is_valid
+    assert any("orgCode must match runner test code 654321" in error for error in observation.errors)
+
+
+@pytest.mark.parametrize(
     ("order_id", "inner", "error_fragment"),
     [
         ("2-303-2026070300000000001", {"dataType": True, "dataSubType": 303}, "invalid route field"),
@@ -84,7 +139,7 @@ def test_receive_inspector_rejects_coerced_or_mismatched_inner_route(order_id, i
     assert any(error_fragment in error for error in observation.errors)
 
 
-def test_receive_inspector_accepts_encrypted_response_with_orderid_fallback() -> None:
+def test_receive_inspector_rejects_opaque_content_when_it_cannot_decrypt() -> None:
     body = {
         "orderID": "2-308-2026070300000000001",
         "statusCode": 0,
@@ -103,14 +158,31 @@ def test_receive_inspector_accepts_encrypted_response_with_orderid_fallback() ->
         },
     )
 
-    assert observation.is_valid
+    assert not observation.is_valid
     assert observation.content_field == "rspMsgCnt"
     assert observation.order_type == 2
     assert observation.sub_type == 308
     assert observation.message_family == "order"
     assert observation.encrypted_or_opaque
+    assert any("decrypt" in error.lower() or "opaque" in error.lower() for error in observation.errors)
     assert observation.header_report["X-Enc-Key"] == "present"
     assert observation.header_report["X-Enc-Key-G"] == "present"
+
+
+def test_strict_crypto_server_fails_fast_when_test_keys_are_missing(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("TEST_MODE", "false")
+    for name in (
+        "CHENG_MOCK_MINISTRY_PRIVATE_KEY",
+        "CHENG_MOCK_MINISTRY_PRIVATE_KEY_FILE",
+        "CHENG_MOCK_PROVINCE_PUBLIC_KEY",
+        "CHENG_MOCK_PROVINCE_PUBLIC_KEY_FILE",
+        "CHENG_MOCK_GROUP_PUBLIC_KEY",
+        "CHENG_MOCK_GROUP_PUBLIC_KEY_FILE",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    with pytest.raises(RuntimeError, match="key"):
+        create_server(host="127.0.0.1", port=0, recorder=FileRecorder(tmp_path, "strict"))
 
 
 def test_unknown_subtype_returns_protocol_level_error_body() -> None:
@@ -141,12 +213,14 @@ def test_file_inspector_covers_protocol_and_current_legacy_file_paths() -> None:
             raw_body=b"--mock\r\ncontent\r\n--mock--\r\n",
         )
 
-        assert observation.is_valid
+        assert not observation.is_valid
+        assert "missing multipart fields" in "; ".join(observation.errors)
         assert observation.path == path
         assert observation.endpoint_role in {"platform_file", "legacy_platform_file"}
 
 
-def test_server_records_protocol_metadata_for_receive_post(tmp_path) -> None:
+@pytest.mark.parametrize("platform_path", sorted(PLATFORM_MESSAGE_PATHS))
+def test_server_records_protocol_metadata_for_receive_post(tmp_path, platform_path: str) -> None:
     recorder = FileRecorder(base_dir=tmp_path, run_id="server")
     server = create_server(host="127.0.0.1", port=0, recorder=recorder)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -160,11 +234,17 @@ def test_server_records_protocol_metadata_for_receive_post(tmp_path) -> None:
                 "orgCode": "MIIT",
                 "ispCode": "CMCC",
                 "ctxCode": 0,
-                "reqMsgCnt": json.dumps({"orderType": 2, "orderSubType": 301}),
+                "reqMsgCnt": json.dumps({
+                    "dataType": 2,
+                    "dataSubType": 301,
+                    "timeStamp": "1752500000",
+                    "sign": "a" * 64,
+                    "registerReqParams": {"devHash": "a" * 32, "devIp": "10.8.100.7"},
+                }),
             }
         ).encode("utf-8")
         request = Request(
-            f"http://{host}:{port}{PLATFORM_RECEIVE_PATH}",
+            f"http://{host}:{port}{platform_path}",
             data=body,
             headers={"Content-Type": "application/json"},
             method="POST",
@@ -176,7 +256,7 @@ def test_server_records_protocol_metadata_for_receive_post(tmp_path) -> None:
 
         assert payload["statusCode"] == 0
         record = json.loads(recorder.path.read_text(encoding="utf-8").strip())
-        assert record["path"] == PLATFORM_RECEIVE_PATH
+        assert record["path"] == platform_path
         assert record["meta"]["mock"] == "protocol-ministry-platform"
         assert record["meta"]["endpoint_role"] == "platform_receive"
         assert record["meta"]["protocol"]["orderID"] == "2-301-2026070300000000001"

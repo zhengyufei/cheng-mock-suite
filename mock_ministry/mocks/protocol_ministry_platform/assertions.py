@@ -6,8 +6,8 @@ from typing import Iterable
 from .contracts import (
     KNOWN_PROTOCOL_SUBTYPES,
     LEGACY_PLATFORM_FILE_UPLOAD_PATH,
+    PLATFORM_MESSAGE_PATHS,
     PLATFORM_FILE_PATH,
-    PLATFORM_RECEIVE_PATH,
 )
 from .evidence import EvidenceRecord, summarize_records
 
@@ -54,7 +54,7 @@ def evaluate_records(records: Iterable[EvidenceRecord], *, mode: str) -> CheckRe
             else:
                 warnings.append(message)
 
-        if record.path == PLATFORM_RECEIVE_PATH and record.sub_type is None:
+        if record.path in PLATFORM_MESSAGE_PATHS and record.sub_type is None:
             failures.append(f"{record.path} 缺少可识别 subtype")
 
         if record.sub_type is not None and record.sub_type not in KNOWN_PROTOCOL_SUBTYPES:
